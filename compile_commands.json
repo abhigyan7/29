@@ -1,0 +1,22 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++17",
+      "./game.cc"
+    ],
+    "directory": "/home/abhigyan/projects/29",
+    "file": "/home/abhigyan/projects/29/game.cc"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++17",
+      "bot.cc"
+    ],
+    "directory": "/home/abhigyan/projects/29",
+    "file": "/home/abhigyan/projects/29/bot.cc"
+  }
+]
