@@ -1,4 +1,5 @@
 #include "bot.hh"
+
 #include <algorithm>
 
 std::ostream &operator<<(std::ostream &os, Card const &card) {
@@ -42,16 +43,8 @@ static GameState game_instance;
 GameState &GetGameInstance() { return game_instance; }
 
 void InitGameInstance() {
-  // Initialization code of game state goes here, if any
 }
 
-//
-// Actual gameplay goes here
-//
-// These three functions are called in response to the http request calls
-// /chooseTrump, /bid and /play respectively. Logic of your code should go
-// inside respective functions
-//
 
 Suit GameState::ChooseTrump(PlayerID myid, std::vector<PlayerID> player_ids,
                             std::vector<Card> mycards, int32_t time_remaining,
@@ -73,16 +66,14 @@ PlayAction GameState::Play(PlayPayload payload) {
   std::cout << "Payload Received and parsed: \n" << payload << std::endl;
 
   if (std::holds_alternative<PlayPayload::RevealedObject>(
-          payload.trumpRevealed)) // or just dump variants and use tagged unions
+          payload.trumpRevealed))
   {
-    // Trump revealed code goes here
   }
 
   PlayAction p_action;
   p_action.action = PlayAction::PlayCard;
 
   if (payload.played.empty()) {
-    // Cards in player hands
     p_action.played_card = payload.cards[0];
     return p_action;
   }
@@ -90,20 +81,14 @@ PlayAction GameState::Play(PlayPayload payload) {
   Suit lead_suit = payload.played[0].suit;
 
   auto same_suit_filter = [=](Card card) { return card.suit == lead_suit; };
-#if defined(RANGES_SUPPORT)
-  auto same_suit_cards = std::views::filter(payload.cards, same_suit_filter);
-#else
   std::vector<Card> same_suit_cards;
   std::copy_if(payload.cards.begin(), payload.cards.end(),
                std::back_inserter(same_suit_cards), same_suit_filter);
-#endif
   if (same_suit_cards.empty()) {
     p_action.played_card = payload.cards[0];
     return p_action;
   }
 
-  // Play card of same suit if available
   p_action.played_card = *same_suit_cards.begin();
   return p_action;
-  // This isn't complete implementation for total gameplay
 }

@@ -171,10 +171,9 @@ struct PlayPayload {
 
   struct RevealedObject {
     int32_t hand;       // hand at which the trump was revealed
-    PlayerID player_id; // Player who revealed the trump
+    PlayerID player_id;
   };
 
-  // Or simply replace with union
   std::variant<bool, Suit> trumpSuit = false;
   std::variant<bool, RevealedObject> trumpRevealed = false;
 
@@ -188,7 +187,6 @@ struct PlayPayload {
   std::vector<Card> played;
   std::vector<BidEntry> bid_history;
 
-  // hand history
   std::vector<HandHistoryEntry> hand_history;
 
   PlayPayload() = default;
