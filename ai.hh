@@ -4,15 +4,14 @@
 #include "bitutils.hh"
 #include <cstdint>
 #include <iostream>
+#include <memory>
+#include <vector>
 #include <stdint.h>
 
 typedef uint32_t Cards;
 typedef uint32_t Card;
 typedef uint32_t CardIndex;
 typedef uint32_t Suit;
-
-typedef Card Move;
-typedef Cards Moves;
 
 typedef uint32_t Player;
 
@@ -90,21 +89,18 @@ void print_cards(Cards cards_in) {
   }
 }
 
+void println_cards(Cards cards_in) {
+  print_cards(cards_in);
+  printf("\n");
+}
+
 inline Card pick_card_at_msb(Cards cards_in) { return 1UL << LOG2(cards_in); }
 
 inline Cards get_winning_cards(Cards cards_in_hand, Card card_to_win_over) {
   // assuming that the cards are of the same suit in both the inputs for now
-  printf("Card to win over: ");
-  print_cards(card_to_win_over);
-  printf("\n");
-  printf("cards in hand: ");
-  print_cards(cards_in_hand);
-  printf("\n");
   Cards cards_higher_than_card_to_win_over = ~(card_to_win_over - 1);
-  printf("cards higher than card to win over: ");
-  print_cards(cards_higher_than_card_to_win_over);
-  printf("\n");
-  cards_higher_than_card_to_win_over = filter_cards_by_suit(cards_higher_than_card_to_win_over, get_suit(card_to_win_over));
+  cards_higher_than_card_to_win_over = filter_cards_by_suit(
+      cards_higher_than_card_to_win_over, get_suit(card_to_win_over));
   return cards_in_hand & cards_higher_than_card_to_win_over;
 }
 
@@ -127,24 +123,14 @@ inline Cards get_legal_moves(Card first_card, Cards cards_so_far_in_hand,
     highest_card = (cards_so_far_in_hand & get_suit(first_card));
   }
 
-  printf("Highest card: ");
-  print_cards(highest_card);
-  printf("\n");
-
   highest_card = pick_card_at_msb(highest_card);
   Cards cards_to_choose_from_that_are_of_the_same_suit_as_the_first_card =
       get_suit(first_card) & cards_to_choose_move_from;
 
   if (cards_to_choose_from_that_are_of_the_same_suit_as_the_first_card) {
-    printf("Thing: ");
-    print_cards(cards_to_choose_from_that_are_of_the_same_suit_as_the_first_card);
-    printf("\n");
     Cards winning_cards = get_winning_cards(
         cards_to_choose_from_that_are_of_the_same_suit_as_the_first_card,
         highest_card);
-    printf("Winning cards: ");
-    print_cards(winning_cards);
-    printf("\n");
     if (winning_cards) {
       return winning_cards;
     }
@@ -155,8 +141,10 @@ inline Cards get_legal_moves(Card first_card, Cards cards_so_far_in_hand,
       trump_suit & cards_to_choose_move_from;
 
   if (cards_to_choose_from_that_are_of_the_trump_suit) {
-    Cards winning_cards = get_winning_cards(cards_to_choose_from_that_are_of_the_trump_suit, highest_card);
-    if (winning_cards) return winning_cards;
+    Cards winning_cards = get_winning_cards(
+        cards_to_choose_from_that_are_of_the_trump_suit, highest_card);
+    if (winning_cards)
+      return winning_cards;
   }
   return cards_to_choose_move_from;
 }
@@ -166,7 +154,12 @@ public:
   Cards cards_each_player_has[4];
 };
 
-class PartiallyObservedGameNode {
+class Move {
+  Card card;
+  Suit reveal_trump;
+};
+
+class PartiallyObservedGameState {
 public:
   Player me;
   int32_t hand_id;
@@ -180,6 +173,47 @@ public:
   Suit trump_suit;
   int8_t player_who_revealed_trump;
   Determinization determinization;
+
+  void determinize() {}
+  void DoMove() {}
+  void do_move(Card move_in);
+  Cards get_moves();
 };
+
+class Node;
+
+class Node {
+public:
+  Cards tried_moves;
+  Cards all_moves;
+  Cards untried_moves;
+  Move move;
+
+  std::vector<std::shared_ptr<Node>> child_nodes;
+  std::shared_ptr<Node> parent;
+
+  Cards get_untried_moves(Cards);
+  Node UCBSelectChild(Cards moves_in) { return DECK; }
+  void Update(void) {}
+  std::shared_ptr<Node> AddChild(Node child) { return nullptr; }
+};
+
+Card ISMCTS(PartiallyObservedGameState root_state, int itermax) {
+
+  Node rootnode;
+  Node node = rootnode;
+
+  for (int i = 0; i < itermax; i++) {
+    PartiallyObservedGameState state = root_state;
+    state.determinize();
+
+  while (state.get_moves() != 0 && node.get_untried_moves(state.get_moves()) == 0) {
+    node = node.UCBSelectChild(state.get_moves());
+    state.do_move(node.move);
+  }
+
+  return SPADE & NINES;
+
+}
 
 #endif // AI_H_

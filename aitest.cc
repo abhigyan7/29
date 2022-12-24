@@ -3,8 +3,7 @@
 int main()
 {
     Cards deck = DECK;
-    print_cards(deck);
-    printf("\n");
+    println_cards(deck);
 
     Card nine_of_spades = SPADE & NINES;
     Card jack_of_spades = SPADE & JACKS;
@@ -13,17 +12,14 @@ int main()
     Card king_of_spades = SPADE & KINGS;
 
     Cards hand = jack_of_spades | ten_of_clubs;
-    print_cards(hand);
-    printf("\n");
-    print_cards(king_of_spades);
-    printf("\n");
+    println_cards(hand);
+    println_cards(king_of_spades);
 
     Cards winning_cards = get_winning_cards(hand, jack_of_spades);
     printf("In legal moves:\n");
     Cards legal_moves = get_legal_moves(king_of_spades, king_of_spades, hand, 0, false, false);
     printf("Legal Moves ");
-    print_cards(legal_moves);
-    printf("\n");
+    println_cards(legal_moves);
 
     return 0;
 }
