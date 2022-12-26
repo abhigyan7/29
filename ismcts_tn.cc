@@ -46,6 +46,7 @@ TwentyNine::TwentyNine() : m_tricksLeft(8),
     std::iota(m_players.begin(), m_players.end(), 0);
     m_playerCards.resize(m_numPlayers);
     m_pointsScored.resize(m_numPlayers, 0);
+    m_bids = {0, 1, 2 ,3};
 
     deal();
     m_trumpSuit = Card::Spades;
@@ -141,14 +142,16 @@ std::vector<Card> TwentyNine::validMoves() const
     std::copy_if(currentTrickCards.begin(), currentTrickCards.end(), std::back_inserter(trumpCardsInCurrentTrick),
                  [&](auto const &c) { return c.suit == m_trumpSuit; });
 
-    if (trumpCardsInCurrentTrick.empty())
+    if (!trumpCardsInCurrentTrick.empty())
     {
         winningCard = *std::max_element(trumpCardsInCurrentTrick.begin(), trumpCardsInCurrentTrick.end(),
                                        [&](auto const &c1, auto const &c2) {return value(c1) < value(c2);});
-    } else {
+    } else if (!cardsInSuit.empty()) {
 
         winningCard = *std::max_element(cardsInSuit.begin(), cardsInSuit.end(),
                                        [&](auto const &c1, auto const &c2) {return value(c1) < value(c2);});
+    } else {
+        return hand;
     }
 
     if (cardsInSuit.empty()) {
@@ -179,7 +182,7 @@ std::vector<Card> TwentyNine::validMoves() const
 
 void TwentyNine::deal()
 {
-    // std::shuffle(m_deck.begin(), m_deck.end(), prng());
+    std::shuffle(m_deck.begin(), m_deck.end(), prng());
 
     auto pos = m_deck.begin();
     for (auto p : m_players) {
@@ -207,7 +210,7 @@ unsigned TwentyNine::calcPointsInTrick() const
 void TwentyNine::finishTrick()
 {
     auto const winner = trickWinner();
-    m_pointsScored[winner] = calcPointsInTrick();
+    m_pointsScored[winner] += calcPointsInTrick();
     m_currentTrick.clear();
     m_player = winner;
     m_tricksLeft--;
@@ -226,9 +229,10 @@ void TwentyNine::finishRound()
     // calculate the winner based on bids
     // deal
 
-    for (unsigned i = 0; i < m_numPlayers; ++i)
+    for (unsigned i = 0; i < 2; ++i)
     {
         m_pointsScored[i] = m_pointsScored[i] + m_pointsScored[get_partner(i)];
+        m_pointsScored[get_partner(i)] = m_pointsScored[i];
     }
 
     deal();

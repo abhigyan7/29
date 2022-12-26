@@ -11,7 +11,7 @@ using json = nlohmann::json;
 
 void ParseCommon(json const &data, PlayerID &player_id,
                  std::vector<PlayerID> &player_ids, int32_t &remaining_time,
-                 std::vector<Card> &my_cards,
+                 std::vector<CCard> &my_cards,
                  std::vector<BidEntry> &bid_history) {
   player_id = data["playerId"].get<PlayerID>();
 
@@ -23,7 +23,7 @@ void ParseCommon(json const &data, PlayerID &player_id,
 
   auto const &player_cards_iter = data["cards"];
   for (auto const &card : player_cards_iter)
-    my_cards.push_back(Card::FromStr(card.dump().c_str()));
+    my_cards.push_back(CCard::FromStr(card.dump().c_str()));
 
   // Bid history is in the form of pair
   auto const &history_iter = data["bidHistory"];
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     PlayerID myid;
     std::vector<PlayerID> player_ids;
     player_ids.reserve(4);
-    std::vector<Card> my_cards;
+    std::vector<CCard> my_cards;
     std::vector<BidEntry> bid_history;
 
     ParseCommon(data, myid, player_ids, remaining_time, my_cards, bid_history);
@@ -76,13 +76,13 @@ int main(int argc, char **argv) {
     PlayerID myid;
     std::vector<PlayerID> player_ids;
     player_ids.reserve(4);
-    std::vector<Card> my_cards;
+    std::vector<CCard> my_cards;
     std::vector<BidEntry> bid_history;
 
     ParseCommon(data, myid, player_ids, remaining_time, my_cards, bid_history);
 
     json send;
-    send["suit"] = SuitToStr(
+    send["suit"] = CSuitToStr(
         GameState::ChooseTrump(myid, std::move(player_ids), std::move(my_cards),
                                remaining_time, std::move(bid_history)));
     return crow::response(send.dump());
@@ -94,11 +94,11 @@ int main(int argc, char **argv) {
         ParseCommon(data, payload.player_id, payload.player_ids,
                     payload.remaining_time, payload.cards, payload.bid_history);
 
-        auto &trump_suit = data["trumpSuit"];
+        auto &trump_suit = data["trumpCSuit"];
         if (trump_suit.is_boolean())
-          payload.trumpSuit = trump_suit.get<bool>();
+          payload.trumpCSuit = trump_suit.get<bool>();
         else
-          payload.trumpSuit = StrToSuit(trump_suit.dump().c_str() + 1);
+          payload.trumpCSuit = StrToCSuit(trump_suit.dump().c_str() + 1);
 
         auto &trump_reveal = data["trumpRevealed"];
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
         auto const &player_cards_iter = data["played"];
         for (auto const &card : player_cards_iter)
-          payload.played.push_back(Card::FromStr(card.dump().c_str()));
+          payload.played.push_back(CCard::FromStr(card.dump().c_str()));
 
         // Teams : teammate, win and bid
         auto const &teams_data = data["teams"];
@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
           // second is the card played in that round
           auto const &cards = *(hands.begin() + 1);
           for (auto const &card : cards)
-            entry.card.push_back(Card::FromStr(card.dump().c_str()));
+            entry.card.push_back(CCard::FromStr(card.dump().c_str()));
           payload.hand_history.push_back(std::move(entry));
         }
 
@@ -152,8 +152,9 @@ int main(int argc, char **argv) {
         auto play_action = GetGameInstance().Play(std::move(payload));
         if (play_action.action & PlayAction::RevealTrump)
           send["revealTrump"] = true;
-        if (play_action.action & PlayAction::PlayCard)
-          send["card"] = Card::ToStr(play_action.played_card);
+        if (play_action.action & PlayAction::PlayCCard)
+          send["card"] = CCard::ToStr(play_action.played_card);
+
         return crow::response(send.dump());
       });
 

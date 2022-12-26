@@ -11,14 +11,14 @@
 
 enum Rank { SEVEN = 7, EIGHT = 8, NINE, TEN, JACK, QUEEN, KING, ACE };
 
-constexpr int32_t CardValue(Rank rank) {
+constexpr int32_t CCardValue(Rank rank) {
   constexpr int32_t card_value[] = {0, 0, 2, 1, 3, 0, 0, 1};
   return card_value[(int32_t)rank - (int32_t)Rank::SEVEN];
 }
 
-enum Suit { CLUBS = 0, DIAMONDS, HEARTS, SPADES };
+enum CSuit { CLUBS = 0, DIAMONDS, HEARTS, SPADES };
 
-constexpr const char *SuitToStr(Suit suit) {
+constexpr const char *CSuitToStr(CSuit suit) {
   switch (suit) {
   case SPADES:
     return "S";
@@ -33,7 +33,7 @@ constexpr const char *SuitToStr(Suit suit) {
   }
 }
 
-constexpr Suit StrToSuit(const char *suit) {
+constexpr CSuit StrToCSuit(const char *suit) {
   switch (*suit) {
   case 'S':
     return SPADES;
@@ -48,22 +48,22 @@ constexpr Suit StrToSuit(const char *suit) {
   }
 }
 
-class Card {
+class CCard {
 
 public:
   Rank rank = ACE;
-  Suit suit = SPADES;
+  CSuit suit = SPADES;
 
-  Card() = default;
-  Card(Rank rank, Suit suit) : rank(rank), suit(suit) {}
-  constexpr bool operator==(const Card &other) const {
+  CCard() = default;
+  CCard(Rank rank, CSuit suit) : rank(rank), suit(suit) {}
+  constexpr bool operator==(const CCard &other) const {
     return rank == other.rank && suit == other.suit;
   }
-  constexpr bool operator!=(const Card &other) const {
+  constexpr bool operator!=(const CCard &other) const {
     return !(*this == other);
   }
 
-  static std::string ToStr(Card const &card) {
+  static std::string ToStr(CCard const &card) {
     std::string name(2, ' ');
     static const char *val = "789TJQK1";
     name[0] = val[(uint32_t)card.rank - (uint32_t)Rank::SEVEN];
@@ -87,8 +87,8 @@ public:
     return name;
   }
 
-  static Card FromStr(const char *str) {
-    Suit suit;
+  static CCard FromStr(const char *str) {
+    CSuit suit;
     Rank rank;
 
     switch (str[1]) {
@@ -136,11 +136,9 @@ public:
     default:
       UNREACHABLE();
     }
-    return Card(rank, suit);
+    return CCard(rank, suit);
   }
 };
-
-std::ostream &operator<<(std::ostream &os, Card const &card);
 
 using PlayerID = std::string;
 
@@ -165,16 +163,16 @@ struct PlayPayload {
   struct HandHistoryEntry {
     PlayerID initiator;
     PlayerID winner;
-    std::vector<Card>
+    std::vector<CCard>
         card; // card played in that round in chronological order, they say
   };
 
   struct RevealedObject {
-    int32_t hand;       // hand at which the trump was revealed
+    int32_t hand; // hand at which the trump was revealed
     PlayerID player_id;
   };
 
-  std::variant<bool, Suit> trumpSuit = false;
+  std::variant<bool, CSuit> trumpCSuit = false;
   std::variant<bool, RevealedObject> trumpRevealed = false;
 
   int32_t remaining_time = 0;
@@ -183,8 +181,8 @@ struct PlayPayload {
   Teams teams[2];
 
   std::vector<PlayerID> player_ids;
-  std::vector<Card> cards;
-  std::vector<Card> played;
+  std::vector<CCard> cards;
+  std::vector<CCard> played;
   std::vector<BidEntry> bid_history;
 
   std::vector<HandHistoryEntry> hand_history;
@@ -198,29 +196,30 @@ struct PlayPayload {
 };
 
 std::ostream &operator<<(std::ostream &os, PlayPayload const &payload);
+std::ostream &operator<<(std::ostream &os, CCard const&);
 
 struct PlayAction {
   enum Action {
     None = 0,
     RevealTrump = 1,
-    PlayCard = 2,
-    RevealAndPlay = RevealTrump | PlayCard
+    PlayCCard = 2,
+    RevealAndPlay = RevealTrump | PlayCCard
   };
 
-  Action action = PlayCard;
-  Card played_card;
+  Action action = PlayCCard;
+  CCard played_card;
 };
 
 struct GameState {
   // Keep any game related extra metadata here
-  // like std::vector<Card> seen_cards;
+  // like std::vector<CCard> seen_cards;
 
   // Time remaining is in milliseconds
-  static Suit ChooseTrump(PlayerID myid, std::vector<PlayerID> player_ids,
-                          std::vector<Card> mycards, int32_t time_remaining,
+  static CSuit ChooseTrump(PlayerID myid, std::vector<PlayerID> player_ids,
+                          std::vector<CCard> mycards, int32_t time_remaining,
                           std::vector<BidEntry> bid_history);
   static int32_t Bid(PlayerID myid, std::vector<PlayerID> player_ids,
-                     std::vector<Card> mycards, int32_t time_remaining,
+                     std::vector<CCard> mycards, int32_t time_remaining,
                      std::vector<BidEntry> bid_history,
                      BidState const &bid_state);
 
