@@ -62,6 +62,7 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const{
         auto const &hand = m_playerCards[p];
         unseenCards.insert(unseenCards.end(), hand.begin(), hand.end());
     }
+
     std::shuffle(unseenCards.begin(), unseenCards.end(), prng());
     auto u = unseenCards.begin();
     for (auto p: m_players) {
@@ -176,8 +177,17 @@ std::vector<Card> TwentyNine::validMoves() const
                  [&](auto const &c) { return value(c) > value(winningCard); });
 
     if (cardsInSuitThatWin.empty())
-        return hand;
+        return cardsInSuit;
     return cardsInSuitThatWin;
+}
+
+void TwentyNine::clear()
+{
+    for (auto &p: m_playerCards)
+    {
+        p.clear();
+    }
+    m_currentTrick.clear();
 }
 
 void TwentyNine::deal()
@@ -256,6 +266,7 @@ TwentyNine::Player TwentyNine::trickWinner() const
 
 std::ostream& operator<<(std::ostream &out, TwentyNine const &g)
 {
+    out << "Card size: " << g.m_playerCards[g.m_player].size() << ", ";
     auto const player = g.m_player;
     auto const &hand = g.m_playerCards[player];
     out << "Round " << g.m_tricksLeft << " | P" << player << ": ";

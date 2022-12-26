@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 #include <variant>
+#include "include/ismcts/sosolver.h"
 
 
 Card::Suit CSuit_to_Suit(CSuit csuit_in) {
@@ -23,6 +24,16 @@ Card CCard_to_Card(CCard card_in)
   return ret;
 }
 
+CCard Card_to_CCard(Card card_in)
+{
+  int Card_rank_enum = (int)card_in.rank;
+  int Card_suit_enum = (int)card_in.suit;
+
+  CCard ret;
+  ret.rank = (Rank) (Card_rank_enum+7);
+  ret.suit = (CSuit) Card_suit_enum;
+  return ret;
+}
 
 std::ostream &operator<<(std::ostream &os, PlayPayload const &payload) {
   os << "Player ID : " << payload.player_id << std::endl;
@@ -69,7 +80,27 @@ void InitGameInstance() {}
 CSuit GameState::ChooseTrump(PlayerID myid, std::vector<PlayerID> player_ids,
                              std::vector<CCard> mycards, int32_t time_remaining,
                              std::vector<BidEntry> bid_history) {
-  return CSuit(mycards[3].suit);
+  std::map<CSuit, int> occurances;
+  occurances[SPADES] = 0;
+  occurances[HEARTS] = 0;
+  occurances[DIAMONDS] = 0;
+  occurances[CLUBS] = 0;
+  for (const auto& c: mycards) {
+    occurances[c.suit] += 1;
+  }
+
+  int max_occ = 0;
+  CSuit ret = mycards[3].suit;
+
+  for (const auto& c: mycards) {
+    if (occurances[c.suit] > max_occ)
+    {
+      max_occ = occurances[c.suit];
+      ret = c.suit;
+    }
+  }
+
+  return ret;
 }
 
 int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
@@ -83,9 +114,10 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
 }
 
 PlayAction GameState::Play(PlayPayload payload) {
-  std::cout << "Payload Received and parsed: \n" << payload << std::endl;
+  // std::cout << "Payload Received and parsed: \n" << payload << std::endl;
 
   TwentyNine tngame;
+  tngame.clear();
 
   std::map<std::string, size_t> map_player_string_to_int_id;
 
@@ -105,14 +137,16 @@ PlayAction GameState::Play(PlayPayload payload) {
     }
   }
 
+  // std::cout << payload.cards.size() <<" cards in payload.cards\n";
+  tngame.m_player = map_player_string_to_int_id[payload.player_id];
+  // tngame.m_playerCards[tngame.m_player].clear();
   for (const auto& ccard: payload.cards)
   {
     Card _card = CCard_to_Card(ccard);
     tngame.m_playerCards[tngame.m_player].push_back(_card);
     unknown_cards.erase(_card);
   }
-
-  tngame.m_player = map_player_string_to_int_id[payload.player_id];
+  // std::cout << tngame.m_playerCards[tngame.m_player].size() <<" cards in hand.cards\n";
 
   int n_cards_in_trick = payload.played.size();
 
@@ -126,13 +160,22 @@ PlayAction GameState::Play(PlayPayload payload) {
     _player = tngame.nextPlayer(_player);
   }
 
+  // std::cout << "Trump suit: " << tngame.m_trumpSuit << ", ";
+  // if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
+  //   tngame.m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
+  // } else if (payload.played.size() > 0) {
+  if (payload.played.size() > 0)
+     tngame.m_trumpSuit = CSuit_to_Suit(payload.played[0].suit);
+  // } else {
+  //   tngame.m_trumpSuit = Card::Spades;
+  // }
+  // std::cout << "Trump suit: " << tngame.m_trumpSuit;
 
-  if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
-    tngame.m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
-  }
+  tngame.m_tricksLeft = 8;
 
   for (const auto& history_entry: payload.hand_history)
   {
+    tngame.m_tricksLeft -= 1;
     for (const auto& played_ccard: history_entry.card)
     {
       Card _card = CCard_to_Card(played_ccard);
@@ -141,9 +184,21 @@ PlayAction GameState::Play(PlayPayload payload) {
   }
 
   tngame.m_players = {0, 1, 2, 3};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{4000};
+  Card best_move = solver(tngame);
+
+  // std::cout << "Move selected: " << best_move << std::endl;
+
+  CCard selected_move = Card_to_CCard(best_move);
+
+  // std::cout << "TN GAME: ";
+  // std::cout << tngame;
+  // std::cout << std::endl;
 
   PlayAction p_action;
   p_action.action = PlayAction::PlayCCard;
+  p_action.played_card = selected_move;
+  return p_action;
 
   if (payload.played.empty()) {
     p_action.played_card = payload.cards[0];

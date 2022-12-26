@@ -40,6 +40,7 @@ public:
 
   Player nextPlayer(Player p) const;
   void deal();
+  void clear();
   void finishRound();
   void finishTrick();
   unsigned calcPointsInTrick() const;
