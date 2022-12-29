@@ -90,15 +90,18 @@ int main(int argc, char **argv) {
 
   CROW_ROUTE(app, "/play").methods(crow::HTTPMethod::Post)([](const crow::request &req) {
         json data = json::parse(req.body);
+        std::cout << "JSON: " << req.body << std::endl;
         PlayPayload payload;
         ParseCommon(data, payload.player_id, payload.player_ids,
                     payload.remaining_time, payload.cards, payload.bid_history);
 
-        auto &trump_suit = data["trumpCSuit"];
+        auto &trump_suit = data["trumpSuit"];
         if (trump_suit.is_boolean())
           payload.trumpCSuit = trump_suit.get<bool>();
         else
           payload.trumpCSuit = StrToCSuit(trump_suit.dump().c_str() + 1);
+
+        std::cout << "trump suit in payload: " << trump_suit.dump() << std::endl;
 
         auto &trump_reveal = data["trumpRevealed"];
 

@@ -5,6 +5,7 @@
 #include "include/ismcts/game.h"
 
 #include <vector>
+#include <set>
 
 class TwentyNine : public ISMCTS::POMGame<Card> {
 
@@ -41,11 +42,17 @@ public:
   Player nextPlayer(Player p) const;
   void deal();
   void clear();
+  void printVerbose() const;
   void finishRound();
   void finishTrick();
   unsigned calcPointsInTrick() const;
   Player roundWinner() const;
   Player trickWinner() const;
+};
+
+class PlayerState {
+public:
+  std::set<Card> m_cardDomain;
 };
 
 #endif // ISMCTS_TN_H_
