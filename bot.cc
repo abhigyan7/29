@@ -154,21 +154,15 @@ PlayAction GameState::Play(PlayPayload payload) {
     _player = tngame.nextPlayer(_player);
   }
 
-  std::cout << "Trump suit: " << tngame.m_trumpSuit << ", ";
   if (std::holds_alternative<bool>(payload.trumpRevealed)) {
-    if (!std::get<bool>(payload.trumpRevealed)) {
-      if (payload.played.size() > 0) {
-        tngame.m_trumpSuit = CSuit_to_Suit(payload.played[0].suit);
-      } else {
-      }
-    } else {
-    }
-  } else {
     if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
       tngame.m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
+      tngame.m_hasTrumpBeenRevealed = true;
     }
   }
+
   std::cout << "Trump suit: " << tngame.m_trumpSuit;
+  std::cout << ", Has trump been revealed: " << tngame.m_hasTrumpBeenRevealed << std::endl;
 
   tngame.m_tricksLeft = 8;
 

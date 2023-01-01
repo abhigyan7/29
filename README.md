@@ -3,12 +3,11 @@
 Bots that play the card game 29. 
 
 ### TODOs
-- [ ] Check TrickWinner function for correctness.
 - [ ] Incorporate better bidding strategy.
 - [ ] MCTS correctness.
-  - [ ] cloneAndRandomize
-  - [ ] currentPlayer
-  - [ ] players
+  - [X] cloneAndRandomize
+  - [X] currentPlayer
+  - [X] players
   - [ ] validMoves
   - [ ] doMove
   - [ ] getResult

@@ -38,6 +38,7 @@ public:
   Player m_dealer;
   Card::Suit m_trumpSuit;
   bool m_requestTrump = false;
+  bool m_hasTrumpBeenRevealed = false;
 
   Player nextPlayer(Player p) const;
   void deal();
