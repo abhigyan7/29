@@ -5,6 +5,7 @@ tmp/
 
 *.o
 compile_commands.json
-*.tar.gx
+*.tar.gz
 *.out
 bot
+.cache
