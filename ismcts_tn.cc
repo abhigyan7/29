@@ -21,13 +21,6 @@ inline int value(Card const &card) {
   return values.at(card.rank);
 }
 
-inline std::vector<Card> trumpChoices() {
-  std::vector<Card> cards(4);
-  for (int i = 0; i < 4; ++i)
-    cards[i] = {Card::Ace, Card::Suit(i)};
-  return cards;
-}
-
 inline std::mt19937 &prng() {
   std::mt19937 static prng;
   return prng;
@@ -42,6 +35,7 @@ TwentyNine::TwentyNine() : m_tricksLeft(8), m_dealer(3) {
   std::iota(m_players.begin(), m_players.end(), 0);
   m_playerCards.resize(m_numPlayers);
   m_pointsScored.resize(m_numPlayers, 0);
+  m_currentTrick.clear();
   m_bids = {0, 1, 2, 3};
 
   // deal();
@@ -65,8 +59,7 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
 
   std::shuffle(unseenCards.begin(), unseenCards.end(), prng());
   Player next_player = nextPlayer(observer);
-  for (const auto &c: unseenCards)
-  {
+  for (const auto &c : unseenCards) {
     if (next_player == observer) {
       next_player = nextPlayer(next_player);
     }
@@ -99,7 +92,7 @@ void TwentyNine::doMove(Card const move) {
   if (m_currentTrick.size() == m_players.size())
     finishTrick();
   else
-      return;
+    return;
   if (m_playerCards[m_player].empty())
     finishRound();
 }
@@ -121,65 +114,61 @@ double TwentyNine::getResult(Player player) const {
 std::vector<Card> TwentyNine::validMoves() const {
   // DONE implement valid moves made of card throws only
   // TODO create a move+reveal trump kind of structure
-  // TODO Allow first player to bid on rounds other than the first
+
+  if (m_tricksLeft == 0)
+    return std::vector<Card>();
 
   auto const &hand = m_playerCards[m_player];
   if (m_currentTrick.empty())
     return hand;
 
-  auto const leadCard = m_currentTrick.front().second;
-  Hand cardsInSuit, winningCardsInHand;
-  std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
-               [&](auto const &c) { return c.suit == leadCard.suit; });
-
+  Card winningCard;
   Hand currentTrickCards;
+  Hand cardsInSuit;
+  Hand winningCardsInHand;
+
   for (const auto &a : m_currentTrick)
     currentTrickCards.push_back(a.second);
 
-  Card winningCard;
-  std::vector<Card> trumpCardsInCurrentTrick;
-  std::copy_if(currentTrickCards.begin(), currentTrickCards.end(),
-               std::back_inserter(trumpCardsInCurrentTrick),
-               [&](auto const &c) { return c.suit == m_trumpSuit; });
+  auto const leadCard = m_currentTrick.front().second;
+  std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
+               [&](auto const &c) { return c.suit == leadCard.suit; });
 
-  if (!trumpCardsInCurrentTrick.empty()) {
-    winningCard = *std::max_element(
-        trumpCardsInCurrentTrick.begin(), trumpCardsInCurrentTrick.end(),
-        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
-  } else if (!cardsInSuit.empty()) {
+  winningCard = *std::max_element(
+      currentTrickCards.begin(), currentTrickCards.end(),
+      [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
 
-    winningCard = *std::max_element(
-        cardsInSuit.begin(), cardsInSuit.end(),
-        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
-  } else {
-    return hand;
-  }
-
-  if (cardsInSuit.empty()) {
-
-    Hand cardsInTrumpSuit;
-    std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
-                 [&](auto const &c) { return c.suit == m_trumpSuit; });
-    if (cardsInTrumpSuit.empty()) {
-      return hand;
-    }
-
-    std::copy_if(hand.begin(), hand.end(),
-                 std::back_inserter(winningCardsInHand),
-                 [&](auto const &c) { return value(c) > value(leadCard); });
-    if (winningCardsInHand.empty())
-      return hand;
-    return winningCardsInHand;
-  }
-
-  Hand cardsInSuitThatWin;
-  std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
-               std::back_inserter(cardsInSuitThatWin),
+  std::copy_if(cardsInSuit.begin(), cardsInSuit.end(), std::back_inserter(winningCardsInHand),
                [&](auto const &c) { return value(c) > value(winningCard); });
 
-  if (cardsInSuitThatWin.empty())
+  if (!m_hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
+    return winningCardsInHand;
+  }
+  if (!cardsInSuit.empty()) {
     return cardsInSuit;
-  return cardsInSuitThatWin;
+  }
+
+  if (m_hasTrumpBeenRevealed) {
+    std::vector<Card> trumpCardsInCurrentTrick;
+    std::copy_if(currentTrickCards.begin(), currentTrickCards.end(),
+                 std::back_inserter(trumpCardsInCurrentTrick),
+                 [&](auto const &c) { return c.suit == m_trumpSuit; });
+    if (!trumpCardsInCurrentTrick.empty()) {
+      winningCard = *std::max_element(trumpCardsInCurrentTrick.begin(),
+                                      trumpCardsInCurrentTrick.end(),
+                                      [&](auto const &c1, auto const &c2) {
+                                        return value(c1) < value(c2);
+                                      });
+
+      std::copy_if(
+          hand.begin(), hand.end(), std::back_inserter(winningCardsInHand),
+          [&](auto const &c) { return value(c) > value(winningCard); });
+      if (winningCardsInHand.empty())
+        return hand;
+      return winningCardsInHand;
+    }
+  }
+  return hand;
 }
 
 void TwentyNine::clear() {
@@ -212,16 +201,17 @@ unsigned TwentyNine::calcPointsInTrick() const {
   return ret;
 }
 
+TwentyNine::Player get_partner(const TwentyNine::Player player_in) {
+  return (player_in + 2) % 4;
+}
+
 void TwentyNine::finishTrick() {
   auto const winner = trickWinner();
   m_pointsScored[winner] += calcPointsInTrick();
+  m_pointsScored[get_partner(winner)] += calcPointsInTrick();
   m_currentTrick.clear();
   m_player = winner;
   m_tricksLeft--;
-}
-
-TwentyNine::Player get_partner(const TwentyNine::Player player_in) {
-  return (player_in + 2) % 4;
 }
 
 void TwentyNine::finishRound() {
@@ -231,26 +221,29 @@ void TwentyNine::finishRound() {
   // calculate the winner based on bids
   // deal
 
-  for (unsigned i = 0; i < 2; ++i) {
-    m_pointsScored[i] = m_pointsScored[i] + m_pointsScored[get_partner(i)];
-    m_pointsScored[get_partner(i)] = m_pointsScored[i];
-  }
+  // for (unsigned i = 0; i < 2; ++i) {
+  //   m_pointsScored[i] = m_pointsScored[i] + m_pointsScored[get_partner(i)];
+  //   m_pointsScored[get_partner(i)] = m_pointsScored[i];
+  // }
 
   // deal();
 }
 
 TwentyNine::Player TwentyNine::trickWinner() const {
   auto winner = m_currentTrick.begin();
+  // std::cout << winner->second << ", " ;
   for (auto p = winner + 1; p < m_currentTrick.end(); ++p) {
     auto const card = p->second;
     auto const winningCard = winner->second;
+    // std::cout << card<< ", " ;
     if (card.suit == winningCard.suit) {
-      if (card.rank > winningCard.rank)
+      if (value(card) > value(winningCard))
         winner = p;
-    } else if (card.suit == m_trumpSuit) {
+    } else if (m_hasTrumpBeenRevealed && (card.suit == m_trumpSuit)) {
       winner = p;
     }
   }
+  // std::cout << " winner = " << winner->first << std::endl;
   return winner->first;
 }
 

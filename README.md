@@ -16,3 +16,5 @@ Bots that play the card game 29.
   - [ ] calcPointsInTrick
   - [ ] roundWinner
   - [ ] trickWinner
+- [ ] A and 10 arent the same value, make sure that's accounted for
+- [ ] Domain restriction for cards based on what a player has played in history

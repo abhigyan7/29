@@ -1,6 +1,7 @@
 #include "bot.hh"
 #include "card.h"
 #include "include/ismcts/sosolver.h"
+#include "include/ismcts/mosolver.h"
 #include "ismcts_tn.hh"
 #include <algorithm>
 #include <boost/asio/detail/handler_type_requirements.hpp>
@@ -107,6 +108,67 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
   return 0;
 }
 
+inline int value(Card const &card) {
+  std::map<Card::Rank, int> static const values{
+      {Card::Ace, 1}, {Card::Seven, 0}, {Card::Eight, 0}, {Card::Nine, 2},
+      {Card::Ten, 1}, {Card::Jack, 3},  {Card::Queen, 0}, {Card::King, 0}};
+  return values.at(card.rank);
+}
+
+std::vector<Card> validMoves(std::vector<Card> hand, std::vector<Card> trick,
+                             Card::Suit trump_suit,
+                             bool has_trump_been_revealed) {
+
+  if (trick.empty())
+    return hand;
+
+  auto const leadCard = trick.front();
+  std::vector<Card> cardsInSuit, winningCardsInHand;
+  std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
+               [&](auto const &c) { return c.suit == leadCard.suit; });
+
+  std::vector<Card> currentTrickCards;
+  for (const auto &a : trick)
+    currentTrickCards.push_back(a);
+
+  Card winningCard;
+  std::vector<Card> trumpCardsInCurrentTrick;
+  std::copy_if(currentTrickCards.begin(), currentTrickCards.end(),
+               std::back_inserter(trumpCardsInCurrentTrick),
+               [&](auto const &c) { return c.suit == trump_suit; });
+
+  if (!trumpCardsInCurrentTrick.empty()) {
+    winningCard = *std::max_element(
+        trumpCardsInCurrentTrick.begin(), trumpCardsInCurrentTrick.end(),
+        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
+  } else if (!cardsInSuit.empty()) {
+
+    winningCard = *std::max_element(
+        cardsInSuit.begin(), cardsInSuit.end(),
+        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
+  } else {
+    return hand;
+  }
+
+  if (!cardsInSuit.empty()) {
+
+    std::vector<Card> cardsInTrumpSuit;
+    std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
+                 [&](auto const &c) { return c.suit == trump_suit; });
+    if (cardsInTrumpSuit.empty()) {
+      return hand;
+    }
+
+    std::copy_if(hand.begin(), hand.end(),
+                 std::back_inserter(winningCardsInHand),
+                 [&](auto const &c) { return value(c) > value(leadCard); });
+    if (winningCardsInHand.empty())
+      return hand;
+    return winningCardsInHand;
+  }
+  return hand;
+}
+
 PlayAction GameState::Play(PlayPayload payload) {
   // std::cout << "Payload Received and parsed: \n" << payload << std::endl;
 
@@ -118,7 +180,7 @@ PlayAction GameState::Play(PlayPayload payload) {
   // TODO make sure this vec is populated before this line executes
   std::set<Card> unknown_cards(tngame.m_deck.begin(), tngame.m_deck.end());
 
-  // TODO clean this mess up, use the map we have above
+  // DONE clean this mess up, use the map we have above
   for (int i = 0; i < 4; ++i) {
     map_player_string_to_int_id[payload.player_ids[i]] = i;
     for (int j = 0; j < 2; ++j) {
@@ -162,7 +224,8 @@ PlayAction GameState::Play(PlayPayload payload) {
   }
 
   std::cout << "Trump suit: " << tngame.m_trumpSuit;
-  std::cout << ", Has trump been revealed: " << tngame.m_hasTrumpBeenRevealed << std::endl;
+  std::cout << ", Has trump been revealed: " << tngame.m_hasTrumpBeenRevealed
+            << std::endl;
 
   tngame.m_tricksLeft = 8;
 
@@ -178,9 +241,12 @@ PlayAction GameState::Play(PlayPayload payload) {
             std::back_inserter(tngame.m_unknownCards));
 
   tngame.m_players = {0, 1, 2, 3};
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{8000};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
   Card best_move = solver(tngame);
 
+  // std::cout << "Tree:::" << std::endl;
+  // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
+  // std::cout << std::endl;
   std::cout << "Move selected: " << best_move << std::endl;
 
   CCard selected_move = Card_to_CCard(best_move);

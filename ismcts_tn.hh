@@ -4,8 +4,8 @@
 #include "card.h"
 #include "include/ismcts/game.h"
 
-#include <vector>
 #include <set>
+#include <vector>
 
 class TwentyNine : public ISMCTS::POMGame<Card> {
 
@@ -26,7 +26,7 @@ public:
   unsigned int static constexpr s_deckSize{32};
   std::vector<Card> m_deck{s_deckSize};
   std::vector<Card> m_unknownCards;
-  std::vector<Player> m_players;
+  std::vector<Player> m_players{4};
   std::vector<Hand> m_playerCards;
   std::vector<Play> m_currentTrick;
   std::vector<unsigned> m_pointsScored;
@@ -39,6 +39,7 @@ public:
   Card::Suit m_trumpSuit;
   bool m_requestTrump = false;
   bool m_hasTrumpBeenRevealed = false;
+  bool m_maybeRevealTrump = false;
 
   Player nextPlayer(Player p) const;
   void deal();
