@@ -242,7 +242,7 @@ PlayAction GameState::Play(PlayPayload payload) {
 
   tngame.m_players = {0, 1, 2, 3};
   ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
-  Card best_move = solver(tngame);
+  Card best_move = solver(tngame).card;
 
   // std::cout << "Tree:::" << std::endl;
   // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;

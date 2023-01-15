@@ -79,7 +79,14 @@ std::vector<TwentyNine::Player> TwentyNine::players() const {
   return m_players;
 }
 
-void TwentyNine::doMove(Card const move) {
+void TwentyNine::doMove(TNMove const tnmove) {
+
+  if (tnmove.to_reveal_trump) {
+    m_trumpSuit = (Card::Suit) std::uniform_int_distribution<>(0, 4)(prng());
+    return;
+  }
+
+  Card move = tnmove.card;
   m_currentTrick.emplace_back(m_player, move);
   auto &hand = m_playerCards[m_player];
   auto const pos = std::find(hand.begin(), hand.end(), move);
@@ -111,16 +118,25 @@ double TwentyNine::getResult(Player player) const {
   return 1.0;
 }
 
-std::vector<Card> TwentyNine::validMoves() const {
+std::vector<TNMove> card_vec_to_tnmove_vec(std::vector<Card> card_vec) {
+  std::vector<TNMove> ret;
+  for (auto const &c : card_vec) {
+    ret.push_back(TNMove(c));
+  }
+  return ret;
+}
+
+std::vector<TNMove> TwentyNine::validMoves() const {
   // DONE implement valid moves made of card throws only
-  // TODO create a move+reveal trump kind of structure
+  // DONE create a move+reveal trump kind of structure
+  // TODO generate revealTrump events
 
   if (m_tricksLeft == 0)
-    return std::vector<Card>();
+    return std::vector<TNMove>();
 
   auto const &hand = m_playerCards[m_player];
   if (m_currentTrick.empty())
-    return hand;
+    return card_vec_to_tnmove_vec(hand);
 
   Card winningCard;
   Hand currentTrickCards;
@@ -138,14 +154,18 @@ std::vector<Card> TwentyNine::validMoves() const {
       currentTrickCards.begin(), currentTrickCards.end(),
       [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
 
-  std::copy_if(cardsInSuit.begin(), cardsInSuit.end(), std::back_inserter(winningCardsInHand),
+  std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
+               std::back_inserter(winningCardsInHand),
                [&](auto const &c) { return value(c) > value(winningCard); });
 
   if (!m_hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
-    return winningCardsInHand;
+    auto moves = card_vec_to_tnmove_vec(winningCardsInHand);
+    moves.push_back(TNMove(true));
+    return moves;
   }
+
   if (!cardsInSuit.empty()) {
-    return cardsInSuit;
+    return card_vec_to_tnmove_vec(cardsInSuit);
   }
 
   if (m_hasTrumpBeenRevealed) {
@@ -164,11 +184,11 @@ std::vector<Card> TwentyNine::validMoves() const {
           hand.begin(), hand.end(), std::back_inserter(winningCardsInHand),
           [&](auto const &c) { return value(c) > value(winningCard); });
       if (winningCardsInHand.empty())
-        return hand;
-      return winningCardsInHand;
+        return card_vec_to_tnmove_vec(hand);
+      return card_vec_to_tnmove_vec(winningCardsInHand);
     }
   }
-  return hand;
+  return card_vec_to_tnmove_vec(hand);
 }
 
 void TwentyNine::clear() {
@@ -245,6 +265,15 @@ TwentyNine::Player TwentyNine::trickWinner() const {
   }
   // std::cout << " winner = " << winner->first << std::endl;
   return winner->first;
+}
+
+std::ostream &operator<<(std::ostream &out, TNMove const &m) {
+  out << "Move: ";
+  if (m.to_reveal_trump)
+    out << "Reveal trump.";
+  else
+    out << m.card << ".";
+  return out;
 }
 
 std::ostream &operator<<(std::ostream &out, TwentyNine const &g) {
