@@ -175,78 +175,19 @@ PlayAction GameState::Play(PlayPayload payload) {
   TwentyNine tngame;
   tngame.clear();
 
-  std::map<std::string, size_t> map_player_string_to_int_id;
+  tngame.parse_playpayload(payload);
 
-  // TODO make sure this vec is populated before this line executes
-  std::set<Card> unknown_cards(tngame.m_deck.begin(), tngame.m_deck.end());
-
-  // DONE clean this mess up, use the map we have above
-  for (int i = 0; i < 4; ++i) {
-    map_player_string_to_int_id[payload.player_ids[i]] = i;
-    for (int j = 0; j < 2; ++j) {
-      for (int k = 0; k < 2; ++k) {
-        if (payload.player_ids[i] == payload.teams[j].players[k]) {
-          tngame.m_bids[i] = payload.teams[j].bid;
-          tngame.m_pointsScored[i] = payload.teams[j].won;
-        }
-      }
-    }
-  }
-
-  // std::cout << payload.cards.size() <<" cards in payload.cards\n";
-  tngame.m_player = map_player_string_to_int_id[payload.player_id];
-  // tngame.m_playerCards[tngame.m_player].clear();
-  for (const auto &ccard : payload.cards) {
-    Card _card = CCard_to_Card(ccard);
-    tngame.m_playerCards[tngame.m_player].push_back(_card);
-    unknown_cards.erase(_card);
-  }
-  // std::cout << tngame.m_playerCards[tngame.m_player].size() <<" cards in
-  // hand.cards\n";
-
-  int n_cards_in_trick = payload.played.size();
-
-  TwentyNine::Player first_player_in_this_trick =
-      (tngame.m_player + (4 - n_cards_in_trick)) % 4;
-  TwentyNine::Player _player = first_player_in_this_trick;
-  for (const auto &played_cards : payload.played) {
-    Card _card = CCard_to_Card(played_cards);
-    unknown_cards.erase(_card);
-    tngame.m_currentTrick.push_back({_player, _card});
-    _player = tngame.nextPlayer(_player);
-  }
-
-  if (std::holds_alternative<bool>(payload.trumpRevealed)) {
-    if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
-      tngame.m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
-      tngame.m_hasTrumpBeenRevealed = true;
-    }
-  }
-
-  std::cout << "Trump suit: " << tngame.m_trumpSuit;
-  std::cout << ", Has trump been revealed: " << tngame.m_hasTrumpBeenRevealed
-            << std::endl;
-
-  tngame.m_tricksLeft = 8;
-
-  for (const auto &history_entry : payload.hand_history) {
-    tngame.m_tricksLeft -= 1;
-    for (const auto &played_ccard : history_entry.card) {
-      Card _card = CCard_to_Card(played_ccard);
-      unknown_cards.erase(_card);
-    }
-  }
-
-  std::copy(unknown_cards.begin(), unknown_cards.end(),
-            std::back_inserter(tngame.m_unknownCards));
-
-  tngame.m_players = {0, 1, 2, 3};
   ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
+
+  if (tngame.canRevealTrump())
+  {
+    PlayAction p_action;
+    p_action.action = PlayAction::RevealTrump;
+    return p_action;
+  }
+
   Card best_move = solver(tngame);
 
-  // std::cout << "Tree:::" << std::endl;
-  // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
-  // std::cout << std::endl;
   std::cout << "Move selected: " << best_move << std::endl;
 
   CCard selected_move = Card_to_CCard(best_move);
