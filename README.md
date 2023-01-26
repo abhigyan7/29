@@ -22,4 +22,5 @@ Bots that play the card game 29.
 - [X] Finish get_win_data 
 - [ ] Parse and store total information
   - [X] Things like who revealed the trump and in which hand/round
-  - [ ] Which suit i chose as trump
+  - [X] Which suit i chose as trump
+- [ ] Make sure the legal moves gen around trump reveal and things like that is correct
