@@ -6,6 +6,7 @@
 #include <iostream>
 #include <variant>
 #include <vector>
+#include "card.h"
 
 #define UNREACHABLE() __builtin_unreachable()
 
@@ -228,5 +229,8 @@ struct GameState {
 
 GameState &GetGameInstance();
 void InitGameInstance();
+Card::Suit CSuit_to_Suit(CSuit csuit_in);
+Card CCard_to_Card(CCard card_in);
+CCard Card_to_CCard(Card card_in);
 
 #endif // BOT_H_
