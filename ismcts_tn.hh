@@ -7,32 +7,15 @@
 #include <set>
 #include <vector>
 
-class TNMove {
-public:
-  Card card;
-  bool to_reveal_trump;
-  TNMove() = default;
-  TNMove(Card _card) : card(_card) {}
-  TNMove(bool rt) : to_reveal_trump(rt) {}
-  friend std::ostream &operator<<(std::ostream &out, TNMove const &tnm);
-};
-
-inline bool operator==(TNMove const &tnmove1, TNMove const &tnmove) {
-  return (tnmove.card == tnmove1.card) && (tnmove1.to_reveal_trump == tnmove.to_reveal_trump);
-}
-inline bool operator!=(TNMove const &tnmove1, TNMove const &tnmove) {
-  return !(tnmove1 == tnmove);
-}
-
-class TwentyNine : public ISMCTS::POMGame<TNMove> {
+class TwentyNine : public ISMCTS::POMGame<Card> {
 
 public:
   explicit TwentyNine();
   virtual Clone cloneAndRandomise(Player observer) const override;
   virtual Player currentPlayer() const override;
   virtual std::vector<Player> players() const override;
-  virtual std::vector<TNMove> validMoves() const override;
-  virtual void doMove(TNMove const move) override;
+  virtual std::vector<Card> validMoves() const override;
+  virtual void doMove(Card const move) override;
   virtual double getResult(Player player) const override;
   friend std::ostream &operator<<(std::ostream &out, TwentyNine const &g);
 
