@@ -5,6 +5,7 @@
 #include "ismcts_tn.hh"
 #include <algorithm>
 #include <boost/asio/detail/handler_type_requirements.hpp>
+#include <chrono>
 #include <map>
 #include <set>
 #include <variant>
@@ -177,7 +178,8 @@ PlayAction GameState::Play(PlayPayload payload) {
 
   tngame.parse_playpayload(payload);
 
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{8000};
+  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::milliseconds((int)(payload.remaining_time * 0.2))};
 
   if (tngame.canRevealTrump())
   {
