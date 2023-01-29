@@ -16,6 +16,9 @@ all: bot
 bot: $(OBJS)
 	$(CXX) -o bot $(OBJS) $(CXXFLAGS)
 
+optim:
+	$(CXX) -o bot $(SRCS) -std=c++20 -Ofast -static -flto
+
 clean:
 	$(RM) $(OBJS) bot
 

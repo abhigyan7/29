@@ -15,17 +15,17 @@
 #include <random>
 #include <string>
 
-inline int value(Card const &card) {
+inline int POINTS(Card const &card) {
   std::map<Card::Rank, int> static const values{
       {Card::Ace, 1}, {Card::Seven, 0}, {Card::Eight, 0}, {Card::Nine, 2},
       {Card::Ten, 1}, {Card::Jack, 3},  {Card::Queen, 0}, {Card::King, 0}};
   return values.at(card.rank);
 }
 
-inline int move_value(Card const &card) {
+inline int VALUE(Card const &card) {
   std::map<Card::Rank, int> static const values{
-      {Card::Ace, 2}, {Card::Seven, 0}, {Card::Eight, 0}, {Card::Nine, 3},
-      {Card::Ten, 1}, {Card::Jack, 4},  {Card::Queen, 0}, {Card::King, 0}};
+      {Card::Ace, 18}, {Card::Seven, 13}, {Card::Eight, 14}, {Card::Nine, 19},
+      {Card::Ten, 17}, {Card::Jack, 20},  {Card::Queen, 15}, {Card::King, 16}};
   return values.at(card.rank);
 }
 
@@ -134,11 +134,11 @@ bool TwentyNine::canRevealTrump() const {
 
   winningCard = *std::max_element(
       currentTrickCards.begin(), currentTrickCards.end(),
-      [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
+      [&](auto const &c1, auto const &c2) { return VALUE(c1) < VALUE(c2); });
 
   std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
                std::back_inserter(winningCardsInHand),
-               [&](auto const &c) { return value(c) > value(winningCard); });
+               [&](auto const &c) { return VALUE(c) > VALUE(winningCard); });
 
   if (!m_hasTrumpBeenRevealed && cardsInSuit.empty())
     return true;
@@ -156,7 +156,7 @@ WinData TwentyNine::getWinData() const {
     auto const card = p->second;
     auto const winningCard = winner->second;
     if (card.suit == winningCard.suit) {
-      if (value(card) > value(winningCard)) {
+      if (VALUE(card) > VALUE(winningCard)) {
         winner = p;
         win_type = SAME_SUIT_GREATER_RANK;
       } else if (m_hasTrumpBeenRevealed && (card.suit == m_trumpSuit)) {
@@ -202,11 +202,11 @@ std::vector<Card> TwentyNine::validMoves() const {
 
   winningCard = *std::max_element(
       currentTrickCards.begin(), currentTrickCards.end(),
-      [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
+      [&](auto const &c1, auto const &c2) { return VALUE(c1) < VALUE(c2); });
 
   std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
                std::back_inserter(winningCardsInHand),
-               [&](auto const &c) { return value(c) > value(winningCard); });
+               [&](auto const &c) { return VALUE(c) > VALUE(winningCard); });
 
   if (!m_hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
     return winningCardsInHand;
@@ -228,13 +228,13 @@ std::vector<Card> TwentyNine::validMoves() const {
       winningCard = *std::max_element(trumpCardsInCurrentTrick.begin(),
                                       trumpCardsInCurrentTrick.end(),
                                       [&](auto const &c1, auto const &c2) {
-                                        return value(c1) < value(c2);
+                                        return VALUE(c1) < VALUE(c2);
                                       });
 
       winningCardsInHand.clear();
       std::copy_if(trump_cards_in_hand.begin(), trump_cards_in_hand.end(),
                    std::back_inserter(winningCardsInHand), [&](auto const &c) {
-                     return value(c) > value(winningCard);
+                     return VALUE(c) > VALUE(winningCard);
                    });
     }
   }
@@ -274,7 +274,7 @@ void TwentyNine::deal() {
 unsigned TwentyNine::calcPointsInTrick() const {
   unsigned ret = 0;
   for (auto card : m_currentTrick) {
-    ret += value(card.second);
+    ret += POINTS(card.second);
   }
   return ret;
 }
@@ -300,7 +300,7 @@ TwentyNine::Player TwentyNine::trickWinner() const {
     auto const card = p->second;
     auto const winningCard = winner->second;
     if (card.suit == winningCard.suit) {
-      if (value(card) > value(winningCard))
+      if (VALUE(card) > VALUE(winningCard))
         winner = p;
     } else if (m_hasTrumpBeenRevealed && (card.suit == m_trumpSuit)) {
       winner = p;

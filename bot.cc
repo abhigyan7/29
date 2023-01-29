@@ -177,6 +177,12 @@ PlayAction GameState::Play(PlayPayload payload) {
   tngame.clear();
 
   tngame.parse_playpayload(payload);
+  if (tngame.validMoves().size() == 1)
+  {
+    PlayAction p_action;
+    p_action.played_card = Card_to_CCard(tngame.validMoves()[0]);
+    return p_action;
+  }
 
   ISMCTS::SOSolver<TwentyNine::MoveType> solver{8000};
   // ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::milliseconds((int)(payload.remaining_time * 0.2))};
