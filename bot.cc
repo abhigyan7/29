@@ -195,6 +195,7 @@ PlayAction GameState::Play(PlayPayload payload) {
   }
 
   Card best_move = solver(tngame);
+  std::cout << *solver.currentTrees()[0] << std::endl;
 
   std::cout << "Move selected: " << best_move << std::endl;
 

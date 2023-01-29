@@ -381,7 +381,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   m_players = {0, 1, 2, 3};
 }
 
-const std::string spades_print_repr[] = {"C", "D", "H", "S"};
+const std::string suits_print_repr[] = {"C", "D", "H", "S"};
 
 std::ostream &operator<<(std::ostream &out, TwentyNine const &g) {
   out << "Card size: " << g.m_playerCards[g.m_player].size() << ", ";
@@ -389,12 +389,16 @@ std::ostream &operator<<(std::ostream &out, TwentyNine const &g) {
   auto const &hand = g.m_playerCards[player];
   out << "Round " << 8 - g.m_tricksLeft << " | P" << player << ": ";
   std::copy(hand.begin(), hand.end(), std::ostream_iterator<Card>(out, ","));
-  out << " | Trump: " << spades_print_repr[g.m_trumpSuit] << " | Trick: [";
+  out << " | Trump: " << suits_print_repr[g.m_trumpSuit] << " | Trick: [";
   for (auto const &pair : g.m_currentTrick)
     out << pair.first << ":" << pair.second << ",";
   out << " ] | Player: " << g.m_player;
-  out << " | Player who revealed trump: " << g.m_player_who_revealed_trump
-      << ", In trick ";
-  out << g.m_which_hand_the_trump_was_revealed_in;
+  if (g.m_hasTrumpBeenRevealed) {
+    out << " | Player who revealed trump: " << g.m_player_who_revealed_trump
+        << ", In trick ";
+    out << g.m_which_hand_the_trump_was_revealed_in;
+  } else {
+    out << " | Trump unrevealed.";
+  }
   return out << "]";
 }
