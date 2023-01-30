@@ -468,10 +468,19 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
 
   std::vector<PlayPayload::HandHistoryEntry> hh = payload.hand_history;
 
-  for (const auto &history_entry : payload.hand_history) {
+  PlayPayload::HandHistoryEntry current_trick_shoehorned_handhistory;
+  for (auto const &_c: currentTrick) {
+    std::cout << "current trick: " << _c.second << ", ";
+    current_trick_shoehorned_handhistory.card.push_back(Card_to_CCard(_c.second));
+  }
+  std::cout << std::endl;
+  hh.push_back(current_trick_shoehorned_handhistory);
+
+  for (const auto &history_entry : hh) {
     for (const auto &played_ccard : history_entry.card) {
       std::vector<Card> legal_moves;
       Card played_card = CCard_to_Card(played_ccard);
+      std::cout << "Played card: " << played_card << std::endl;
       while (true) {
         m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
         legal_moves = validMoves();
@@ -495,6 +504,8 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
       players_possible_cards[3].erase(played_card);
     }
   }
+
+  players_possible_cards[me] = vec_to_set(my_remaining_cards);
 
   std::cout << std::endl << std::endl;
   std::cout << "---------------------------" << std::endl;
