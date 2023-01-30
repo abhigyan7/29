@@ -171,7 +171,6 @@ std::vector<Card> validMoves(std::vector<Card> hand, std::vector<Card> trick,
 }
 
 PlayAction GameState::Play(PlayPayload payload) {
-  // std::cout << "Payload Received and parsed: \n" << payload << std::endl;
 
   TwentyNine tngame;
   tngame.clear();
@@ -184,8 +183,7 @@ PlayAction GameState::Play(PlayPayload payload) {
     return p_action;
   }
 
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{8000};
-  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::milliseconds((int)(payload.remaining_time * 0.2))};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
 
   if (tngame.canRevealTrump())
   {
@@ -200,10 +198,6 @@ PlayAction GameState::Play(PlayPayload payload) {
   std::cout << "Move selected: " << best_move << std::endl;
 
   CCard selected_move = Card_to_CCard(best_move);
-
-  std::cout << "TN GAME: ";
-  std::cout << tngame;
-  std::cout << std::endl;
 
   PlayAction p_action;
   p_action.action = PlayAction::PlayCCard;

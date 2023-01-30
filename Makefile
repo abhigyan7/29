@@ -6,7 +6,7 @@
 
 CXX=g++
 RM=rm -f
-CXXFLAGS=-g -std=c++20
+CXXFLAGS=-g -std=c++20 -DDEBUG
 
 SRCS=game.cc bot.cc ismcts_tn.cc
 OBJS=$(subst .cc,.o,$(SRCS))

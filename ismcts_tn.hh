@@ -53,6 +53,7 @@ public:
   Player m_player_who_revealed_trump;
   size_t m_which_hand_the_trump_was_revealed_in;
   std::map<std::string, size_t> m_map_player_string_to_int_id;
+    std::vector<std::set<Card>> m_players_possible_cards;
 
   Player nextPlayer(Player p) const;
   void deal();

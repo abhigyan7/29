@@ -55,15 +55,45 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
 
   Hand unseenCards = m_unknownCards;
 
-  std::shuffle(unseenCards.begin(), unseenCards.end(), prng());
-  Player next_player = nextPlayer(observer);
-  for (const auto &c : unseenCards) {
-    if (next_player == observer) {
+  bool is_sampled_correctly = false;
+  int n_samples = 1;
+
+  while (!is_sampled_correctly) {
+  reject:
+    for (int i = 0; i < 4; i++) {
+      if (i == observer)
+        continue;
+      clone->m_playerCards[i].clear();
+    }
+    std::shuffle(unseenCards.begin(), unseenCards.end(), prng());
+    Player next_player = nextPlayer(observer);
+    for (const auto &c : unseenCards) {
+      if (next_player == observer) {
+        next_player = nextPlayer(next_player);
+      }
+      if (m_players_possible_cards[next_player].count(c) == 0) {
+        if (n_samples < 100) {
+          n_samples++;
+          goto reject;
+        }
+      }
+      clone->m_playerCards[next_player].push_back(c);
       next_player = nextPlayer(next_player);
     }
-    clone->m_playerCards[next_player].push_back(c);
-    next_player = nextPlayer(next_player);
+    is_sampled_correctly = true;
   }
+#ifdef DEBUG
+#ifdef __DEBUG_BAD
+  std::cout << "Sampled " << n_samples << " times" << std::endl;
+  for (const auto &_player : m_players) {
+    std::cout << "Player: " << _player << ": ";
+    for (const auto &_sampled_card : clone->m_playerCards[_player]) {
+      std::cout << _sampled_card << ", ";
+    }
+    std::cout << std::endl;
+  }
+#endif
+#endif
   return clone;
 }
 
@@ -469,9 +499,10 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   std::vector<PlayPayload::HandHistoryEntry> hh = payload.hand_history;
 
   PlayPayload::HandHistoryEntry current_trick_shoehorned_handhistory;
-  for (auto const &_c: currentTrick) {
+  for (auto const &_c : currentTrick) {
     std::cout << "current trick: " << _c.second << ", ";
-    current_trick_shoehorned_handhistory.card.push_back(Card_to_CCard(_c.second));
+    current_trick_shoehorned_handhistory.card.push_back(
+        Card_to_CCard(_c.second));
   }
   std::cout << std::endl;
   hh.push_back(current_trick_shoehorned_handhistory);
@@ -480,7 +511,6 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
     for (const auto &played_ccard : history_entry.card) {
       std::vector<Card> legal_moves;
       Card played_card = CCard_to_Card(played_ccard);
-      std::cout << "Played card: " << played_card << std::endl;
       while (true) {
         m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
         legal_moves = validMoves();
@@ -507,6 +537,18 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
 
   players_possible_cards[me] = vec_to_set(my_remaining_cards);
 
+  for (int i = 0; i < 4; ++i) {
+    m_map_player_string_to_int_id[payload.player_ids[i]] = i;
+    for (int j = 0; j < 2; ++j) {
+      for (int k = 0; k < 2; ++k) {
+        if (payload.player_ids[i] == payload.teams[j].players[k]) {
+          m_bids[i] = payload.teams[j].bid;
+          m_pointsScored[i] = payload.teams[j].won;
+        }
+      }
+    }
+  }
+#ifdef DEBUG
   std::cout << std::endl << std::endl;
   std::cout << "---------------------------" << std::endl;
 
@@ -534,6 +576,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   for (const auto &_c : unknown_cards)
     std::cout << _c << ", ";
   std::cout << std::endl;
+#endif
 
   m_currentTrick = currentTrick;
   m_playerCards[0] = {};
@@ -543,6 +586,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   m_playerCards[me] = my_remaining_cards;
   std::copy(unknown_cards.begin(), unknown_cards.end(),
             std::back_inserter(m_unknownCards));
+  m_players_possible_cards = players_possible_cards;
 }
 
 const std::string suits_print_repr[] = {"C", "D", "H", "S"};
