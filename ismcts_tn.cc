@@ -380,14 +380,12 @@ int trickWinner(std::vector<Card> trick, bool has_trump_been_revealed,
 }
 
 template <typename T>
-inline std::vector<T> set_to_vec(const std::set<T> &set_in)
-{
+inline std::vector<T> set_to_vec(const std::set<T> &set_in) {
   return std::vector<T>(set_in.begin(), set_in.end());
 }
 
 template <typename T>
-inline std::set<T> vec_to_set(const std::vector<T> &vec_in)
-{
+inline std::set<T> vec_to_set(const std::vector<T> &vec_in) {
   return std::set<T>(vec_in.begin(), vec_in.end());
 }
 
@@ -477,18 +475,18 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
       while (true) {
         m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
         legal_moves = validMoves();
-        std::set<Card> legal_moves_set(legal_moves.begin(), legal_moves.end());
-        played_card = CCard_to_Card(played_ccard);
-        if (legal_moves_set.count(played_card) == 0) {
-          for (const auto &legal_card_that_player_couldnt_play :
-               legal_moves_set) {
-            players_possible_cards[m_player].erase(
-                legal_card_that_player_couldnt_play);
-          }
-        } else {
+        if (legal_moves.size() == 0)
           break;
+        std::set<Card> legal_moves_set = vec_to_set(legal_moves);
+        played_card = CCard_to_Card(played_ccard);
+        if (legal_moves_set.count(played_card) != 0)
+          break;
+        for (const auto &legal_card_that_player_couldnt_play :
+             legal_moves_set) {
+          players_possible_cards[m_player].erase(
+              legal_card_that_player_couldnt_play);
         }
-      };
+      }
       doMove(played_card);
       unknown_cards.erase(played_card);
       players_possible_cards[0].erase(played_card);
@@ -502,22 +500,27 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   std::cout << "---------------------------" << std::endl;
 
   std::cout << "Player 0 has: ";
-  for (const auto &_c: players_possible_cards[0])
+  for (const auto &_c : players_possible_cards[0])
     std::cout << _c << ", ";
   std::cout << std::endl;
 
   std::cout << "Player 1 has: ";
-  for (const auto &_c: players_possible_cards[1])
+  for (const auto &_c : players_possible_cards[1])
     std::cout << _c << ", ";
   std::cout << std::endl;
 
   std::cout << "Player 2 has: ";
-  for (const auto &_c: players_possible_cards[2])
+  for (const auto &_c : players_possible_cards[2])
     std::cout << _c << ", ";
   std::cout << std::endl;
 
   std::cout << "Player 3 has: ";
-  for (const auto &_c: players_possible_cards[3])
+  for (const auto &_c : players_possible_cards[3])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Unknown cards: ";
+  for (const auto &_c : unknown_cards)
     std::cout << _c << ", ";
   std::cout << std::endl;
 
