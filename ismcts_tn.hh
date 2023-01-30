@@ -7,23 +7,14 @@
 
 #include <set>
 #include <vector>
+#include <map>
 
-enum WinType {
-  SAME_SUIT_GREATER_RANK, TRUMP_SUIT_GREATEST_CARD
+enum MoveType {
+    MOVE_TYPE_FOLLOW_SUIT_WIN,
+    MOVE_TYPE_FOLLOW_SUIT_LOSE,
+    MOVE_TYPE_TRUMP_WIN,
+    MOVE_TYPE_NONE,
 };
-
-enum MoveSetType {
-  SAME_SUIT_WINNING = SAME_SUIT_GREATER_RANK,
-  TRUMP_SUIT_WINNING = TRUMP_SUIT_GREATEST_CARD,
-  SAME_SUIT_NOT_WINNING = 3,
-  DIFFERENT_SUIT = 4
-};
-
-typedef struct WinData {
-  Card winning_card;
-  ISMCTS::POMGame<Card>::Player winning_player;
-  WinType win_type;
-} WinData;
 
 class TwentyNine : public ISMCTS::POMGame<Card> {
 
@@ -40,6 +31,8 @@ public:
 public:
   using Hand = std::vector<Card>;
   using Play = std::pair<Player, Card>;
+
+  bool m_card_distribution[4][8];
 
   unsigned int static constexpr s_deckSize{32};
   std::vector<Card> m_deck{s_deckSize};
@@ -59,6 +52,7 @@ public:
   bool m_hasTrumpBeenRevealed = false;
   Player m_player_who_revealed_trump;
   size_t m_which_hand_the_trump_was_revealed_in;
+  std::map<std::string, size_t> m_map_player_string_to_int_id;
 
   Player nextPlayer(Player p) const;
   void deal();
@@ -71,13 +65,8 @@ public:
   Player trickWinner() const;
   bool canRevealTrump() const;
 
-    void parse_playpayload(const PlayPayload&) ;
-  WinData getWinData() const;
-};
+  void parse_playpayload(const PlayPayload&);
 
-class PlayerState {
-public:
-  std::set<Card> m_cardDomain;
 };
 
 #endif // ISMCTS_TN_H_

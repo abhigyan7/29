@@ -1,6 +1,7 @@
 #include "ismcts_tn.hh"
 
 #include "bot.hh"
+#include "card.h"
 #include "include/ismcts/utility.h"
 #include "ismcts_tn.hh"
 #include <algorithm>
@@ -145,38 +146,88 @@ bool TwentyNine::canRevealTrump() const {
   return false;
 }
 
-WinData TwentyNine::getWinData() const {
-  WinData ret;
-
-  auto winner = m_currentTrick.begin();
-  Card winning_card = m_currentTrick.begin()[0].second;
-  WinType win_type = SAME_SUIT_GREATER_RANK;
-
-  for (auto p = winner + 1; p < m_currentTrick.end(); ++p) {
-    auto const card = p->second;
-    auto const winningCard = winner->second;
-    if (card.suit == winningCard.suit) {
-      if (VALUE(card) > VALUE(winningCard)) {
-        winner = p;
-        win_type = SAME_SUIT_GREATER_RANK;
-      } else if (m_hasTrumpBeenRevealed && (card.suit == m_trumpSuit)) {
-        winner = p;
-        win_type = TRUMP_SUIT_GREATEST_CARD;
-      }
-    }
-  }
-
-  ret.winning_player = winner->first;
-  ret.winning_card = winning_card;
-  ret.win_type = win_type;
-  return ret;
-}
-
 bool does_card_win_in_a_hand(const std::vector<Card> hand, const Card card,
                              const Card::Suit lead_card_suit,
                              const bool has_trump_been_revealed,
                              const Card::Suit trump_suit) {
   return true;
+}
+
+std::vector<Card>
+pureValidMoves(int tricksLeft, const std::vector<std::vector<Card>> playerCards,
+               TwentyNine::Player player,
+               std::vector<TwentyNine::Play> currentTrick,
+               bool hasTrumpBeenRevealed, Card::Suit trumpSuit,
+               TwentyNine::Player player_who_revealed_trump,
+               int which_trick_trump_was_revealed_in) {
+
+  using Hand = std::vector<Card>;
+  if (tricksLeft == 0)
+    return std::vector<Card>();
+
+  const std::vector<Card> hand = playerCards[player];
+  if (currentTrick.empty())
+    return hand;
+
+  Card winningCard;
+  Hand currentTrickCards;
+  Hand cardsInSuit;
+  Hand winningCardsInHand;
+
+  for (const auto &a : currentTrick)
+    currentTrickCards.push_back(a.second);
+
+  auto const leadCard = currentTrick.front().second;
+  std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
+               [&](auto const &c) { return c.suit == leadCard.suit; });
+
+  winningCard = *std::max_element(
+      currentTrickCards.begin(), currentTrickCards.end(),
+      [&](auto const &c1, auto const &c2) { return VALUE(c1) < VALUE(c2); });
+
+  std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
+               std::back_inserter(winningCardsInHand),
+               [&](auto const &c) { return VALUE(c) > VALUE(winningCard); });
+
+  if (!hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
+    return winningCardsInHand;
+  }
+  if (!cardsInSuit.empty()) {
+    return cardsInSuit;
+  }
+
+  std::vector<Card> trump_cards_in_hand;
+  if (hasTrumpBeenRevealed) {
+    std::vector<Card> trumpCardsInCurrentTrick;
+    std::copy_if(currentTrickCards.begin(), currentTrickCards.end(),
+                 std::back_inserter(trumpCardsInCurrentTrick),
+                 [&](auto const &c) { return c.suit == trumpSuit; });
+    std::copy_if(hand.begin(), hand.end(),
+                 std::back_inserter(trump_cards_in_hand),
+                 [&](auto const &c) { return c.suit == trumpSuit; });
+    if (!trumpCardsInCurrentTrick.empty()) {
+      winningCard = *std::max_element(trumpCardsInCurrentTrick.begin(),
+                                      trumpCardsInCurrentTrick.end(),
+                                      [&](auto const &c1, auto const &c2) {
+                                        return VALUE(c1) < VALUE(c2);
+                                      });
+
+      winningCardsInHand.clear();
+      std::copy_if(trump_cards_in_hand.begin(), trump_cards_in_hand.end(),
+                   std::back_inserter(winningCardsInHand), [&](auto const &c) {
+                     return VALUE(c) > VALUE(winningCard);
+                   });
+    }
+  }
+  if (!winningCardsInHand.empty())
+    return winningCardsInHand;
+  if (hasTrumpBeenRevealed && winningCardsInHand.empty() &&
+      player_who_revealed_trump == player &&
+      // i was here
+      which_trick_trump_was_revealed_in == (9 - tricksLeft))
+    if (!trump_cards_in_hand.empty())
+      return trump_cards_in_hand;
+  return hand;
 }
 
 std::vector<Card> TwentyNine::validMoves() const {
@@ -309,15 +360,44 @@ TwentyNine::Player TwentyNine::trickWinner() const {
   return winner->first;
 }
 
-void TwentyNine::parse_playpayload(const PlayPayload &payload) {
+int trickWinner(std::vector<Card> trick, bool has_trump_been_revealed,
+                Card::Suit trump_suit) {
+  Card winner = trick[0];
+  int ret = 0;
+  for (int i = 1; i < trick.size(); i++) {
+    Card p = trick[i];
+    if (p.suit == winner.suit) {
+      if (VALUE(p) > VALUE(winner)) {
+        winner = p;
+        ret = i;
+      }
+    } else if (has_trump_been_revealed && (p.suit == trump_suit)) {
+      winner = p;
+      ret = i;
+    }
+  }
+  return ret;
+}
 
-  std::map<std::string, size_t> map_player_string_to_int_id;
+template <typename T>
+inline std::vector<T> set_to_vec(const std::set<T> &set_in)
+{
+  return std::vector<T>(set_in.begin(), set_in.end());
+}
+
+template <typename T>
+inline std::set<T> vec_to_set(const std::vector<T> &vec_in)
+{
+  return std::set<T>(vec_in.begin(), vec_in.end());
+}
+
+void TwentyNine::parse_playpayload(const PlayPayload &payload) {
 
   std::set<Card> unknown_cards(m_deck.begin(), m_deck.end());
 
   // DONE clean this mess up, use the map we have above
   for (int i = 0; i < 4; ++i) {
-    map_player_string_to_int_id[payload.player_ids[i]] = i;
+    m_map_player_string_to_int_id[payload.player_ids[i]] = i;
     for (int j = 0; j < 2; ++j) {
       for (int k = 0; k < 2; ++k) {
         if (payload.player_ids[i] == payload.teams[j].players[k]) {
@@ -328,18 +408,19 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
     }
   }
 
-  // std::cout << payload.cards.size() <<" cards in payload.cards\n";
-  m_player = map_player_string_to_int_id[payload.player_id];
-  // tngame.m_playerCards[tngame.m_player].clear();
+  std::vector<Card> my_remaining_cards;
+  Player me = m_map_player_string_to_int_id[payload.player_id];
+  m_player = m_map_player_string_to_int_id[payload.player_id];
   for (const auto &ccard : payload.cards) {
     Card _card = CCard_to_Card(ccard);
     m_playerCards[m_player].push_back(_card);
+    my_remaining_cards.push_back(_card);
     unknown_cards.erase(_card);
   }
-  // std::cout << tngame.m_playerCards[tngame.m_player].size() <<" cards in
-  // hand.cards\n";
 
   int n_cards_in_trick = payload.played.size();
+
+  std::vector<Play> currentTrick;
 
   TwentyNine::Player first_player_in_this_trick =
       (m_player + (4 - n_cards_in_trick)) % 4;
@@ -347,7 +428,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   for (const auto &played_cards : payload.played) {
     Card _card = CCard_to_Card(played_cards);
     unknown_cards.erase(_card);
-    m_currentTrick.push_back({_player, _card});
+    currentTrick.push_back({_player, _card});
     _player = nextPlayer(_player);
   }
 
@@ -356,7 +437,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
     PlayerID player_id_who_revealed =
         std::get<PlayPayload::RevealedObject>(payload.trumpRevealed).player_id;
     m_player_who_revealed_trump =
-        map_player_string_to_int_id[player_id_who_revealed];
+        m_map_player_string_to_int_id[player_id_who_revealed];
     m_which_hand_the_trump_was_revealed_in =
         std::get<PlayPayload::RevealedObject>(payload.trumpRevealed).hand;
     if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
@@ -365,20 +446,89 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
     }
   }
 
+  m_players = {0, 1, 2, 3};
   m_tricksLeft = 8;
 
+  std::set<Card> deck_minus_mine(m_deck.begin(), m_deck.end());
+  for (const auto &my_card : m_playerCards[me]) {
+    deck_minus_mine.erase(my_card);
+  }
+
+  std::set<Card> my_cards_set = vec_to_set<Card>(m_playerCards[me]);
+  std::vector<std::set<Card>> players_possible_cards{4};
+  for (int _i = 0; _i < 4; _i++) {
+    if (_i != m_player)
+      players_possible_cards[_i] = deck_minus_mine;
+    else
+      players_possible_cards[_i] = my_cards_set;
+  }
+
+  if (payload.hand_history.size() == 0)
+    m_player = first_player_in_this_trick;
+  else
+    m_player = m_map_player_string_to_int_id[payload.hand_history[0].initiator];
+
+  std::vector<PlayPayload::HandHistoryEntry> hh = payload.hand_history;
+
   for (const auto &history_entry : payload.hand_history) {
-    m_tricksLeft -= 1;
     for (const auto &played_ccard : history_entry.card) {
-      Card _card = CCard_to_Card(played_ccard);
-      unknown_cards.erase(_card);
+      std::vector<Card> legal_moves;
+      Card played_card = CCard_to_Card(played_ccard);
+      while (true) {
+        m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
+        legal_moves = validMoves();
+        std::set<Card> legal_moves_set(legal_moves.begin(), legal_moves.end());
+        played_card = CCard_to_Card(played_ccard);
+        if (legal_moves_set.count(played_card) == 0) {
+          for (const auto &legal_card_that_player_couldnt_play :
+               legal_moves_set) {
+            players_possible_cards[m_player].erase(
+                legal_card_that_player_couldnt_play);
+          }
+        } else {
+          break;
+        }
+      };
+      doMove(played_card);
+      unknown_cards.erase(played_card);
+      players_possible_cards[0].erase(played_card);
+      players_possible_cards[1].erase(played_card);
+      players_possible_cards[2].erase(played_card);
+      players_possible_cards[3].erase(played_card);
     }
   }
 
+  std::cout << std::endl << std::endl;
+  std::cout << "---------------------------" << std::endl;
+
+  std::cout << "Player 0 has: ";
+  for (const auto &_c: players_possible_cards[0])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 1 has: ";
+  for (const auto &_c: players_possible_cards[1])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 2 has: ";
+  for (const auto &_c: players_possible_cards[2])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 3 has: ";
+  for (const auto &_c: players_possible_cards[3])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  m_currentTrick = currentTrick;
+  m_playerCards[0] = {};
+  m_playerCards[1] = {};
+  m_playerCards[2] = {};
+  m_playerCards[3] = {};
+  m_playerCards[me] = my_remaining_cards;
   std::copy(unknown_cards.begin(), unknown_cards.end(),
             std::back_inserter(m_unknownCards));
-
-  m_players = {0, 1, 2, 3};
 }
 
 const std::string suits_print_repr[] = {"C", "D", "H", "S"};
