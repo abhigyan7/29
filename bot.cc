@@ -176,6 +176,10 @@ PlayAction GameState::Play(PlayPayload payload) {
   tngame.clear();
 
   tngame.parse_playpayload(payload);
+
+  std::cout << "GAME::::" << std::endl;
+  std::cout << tngame << std::endl;
+
   if (tngame.validMoves().size() == 1)
   {
     PlayAction p_action;
@@ -183,7 +187,7 @@ PlayAction GameState::Play(PlayPayload payload) {
     return p_action;
   }
 
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{3000};
 
   if (tngame.canRevealTrump())
   {
@@ -193,7 +197,10 @@ PlayAction GameState::Play(PlayPayload payload) {
   }
 
   Card best_move = solver(tngame);
-  std::cout << *solver.currentTrees()[0] << std::endl;
+  // std::cout << *solver.currentTrees()[0] << std::endl;
+  // for (const auto tree: solver.currentTrees()) {
+  //   std::cout << *tree;
+  // }
 
   std::cout << "Move selected: " << best_move << std::endl;
 

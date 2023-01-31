@@ -82,8 +82,7 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
     }
     is_sampled_correctly = true;
   }
-#ifdef DEBUG
-#ifdef __DEBUG_BAD
+#ifdef DEBUG_
   std::cout << "Sampled " << n_samples << " times" << std::endl;
   for (const auto &_player : m_players) {
     std::cout << "Player: " << _player << ": ";
@@ -92,7 +91,6 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
     }
     std::cout << std::endl;
   }
-#endif
 #endif
   return clone;
 }
@@ -511,7 +509,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
     for (const auto &played_ccard : history_entry.card) {
       std::vector<Card> legal_moves;
       Card played_card = CCard_to_Card(played_ccard);
-      while (true) {
+      while (m_player != me) {
         m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
         legal_moves = validMoves();
         if (legal_moves.size() == 0)
@@ -584,6 +582,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   m_playerCards[2] = {};
   m_playerCards[3] = {};
   m_playerCards[me] = my_remaining_cards;
+  m_player = me;
   std::copy(unknown_cards.begin(), unknown_cards.end(),
             std::back_inserter(m_unknownCards));
   m_players_possible_cards = players_possible_cards;
