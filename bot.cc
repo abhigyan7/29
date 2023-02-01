@@ -103,9 +103,52 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
                    std::vector<CCard> mycards, int32_t time_remaining,
                    std::vector<BidEntry> bid_history,
                    BidState const &bid_state) {
+
+  int max_bid_target = 16;
+
+  std::map<CSuit, int> occurances;
+
+  occurances[SPADES] = 0;
+  occurances[HEARTS] = 0;
+  occurances[DIAMONDS] = 0;
+  occurances[CLUBS] = 0;
+
+  for (const auto &c : mycards) {
+    occurances[c.suit] += 1;
+    if (c.rank == JACK)
+      max_bid_target += 1;
+  }
+
+  int max_occ = 0;
+  CSuit ret = mycards[3].suit;
+
+  for (const auto &c : mycards) {
+    if (c.rank == JACK)
+      max_bid_target += 1;
+    if (occurances[c.suit] > max_occ) {
+      max_occ = occurances[c.suit];
+      ret = c.suit;
+    }
+  }
+
+  max_bid_target += max_occ / 3;
+
   // Either bid or pass
   if (bid_history.empty())
     return 16;
+
+  int max_bid = 0;
+  std::map<PlayerID, int> bid_map;
+  for (auto const &bid_entry : bid_history)
+  {
+    bid_map[bid_entry.player_id] = bid_entry.bid_value;
+    if (bid_entry.bid_value > max_bid) {
+      max_bid = bid_entry.bid_value;
+    }
+  }
+
+  if (max_bid < max_bid_target)
+    return max_bid_target;
   return 0;
 }
 
@@ -116,59 +159,6 @@ inline int value(Card const &card) {
   return values.at(card.rank);
 }
 
-std::vector<Card> validMoves(std::vector<Card> hand, std::vector<Card> trick,
-                             Card::Suit trump_suit,
-                             bool has_trump_been_revealed) {
-
-  if (trick.empty())
-    return hand;
-
-  auto const leadCard = trick.front();
-  std::vector<Card> cardsInSuit, winningCardsInHand;
-  std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
-               [&](auto const &c) { return c.suit == leadCard.suit; });
-
-  std::vector<Card> currentTrickCards;
-  for (const auto &a : trick)
-    currentTrickCards.push_back(a);
-
-  Card winningCard;
-  std::vector<Card> trumpCardsInCurrentTrick;
-  std::copy_if(currentTrickCards.begin(), currentTrickCards.end(),
-               std::back_inserter(trumpCardsInCurrentTrick),
-               [&](auto const &c) { return c.suit == trump_suit; });
-
-  if (!trumpCardsInCurrentTrick.empty()) {
-    winningCard = *std::max_element(
-        trumpCardsInCurrentTrick.begin(), trumpCardsInCurrentTrick.end(),
-        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
-  } else if (!cardsInSuit.empty()) {
-
-    winningCard = *std::max_element(
-        cardsInSuit.begin(), cardsInSuit.end(),
-        [&](auto const &c1, auto const &c2) { return value(c1) < value(c2); });
-  } else {
-    return hand;
-  }
-
-  if (!cardsInSuit.empty()) {
-
-    std::vector<Card> cardsInTrumpSuit;
-    std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
-                 [&](auto const &c) { return c.suit == trump_suit; });
-    if (cardsInTrumpSuit.empty()) {
-      return hand;
-    }
-
-    std::copy_if(hand.begin(), hand.end(),
-                 std::back_inserter(winningCardsInHand),
-                 [&](auto const &c) { return value(c) > value(leadCard); });
-    if (winningCardsInHand.empty())
-      return hand;
-    return winningCardsInHand;
-  }
-  return hand;
-}
 
 PlayAction GameState::Play(PlayPayload payload) {
 
