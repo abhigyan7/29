@@ -123,8 +123,6 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
   CSuit ret = mycards[3].suit;
 
   for (const auto &c : mycards) {
-    if (c.rank == JACK)
-      max_bid_target += 1;
     if (occurances[c.suit] > max_occ) {
       max_occ = occurances[c.suit];
       ret = c.suit;
