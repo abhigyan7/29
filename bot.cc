@@ -178,7 +178,7 @@ PlayAction GameState::Play(PlayPayload payload) {
   // double time_to_search_for_s = 0.001 * double(payload.remaining_time) * 0.2;
   // std::cout << "Searching for " << time_to_search_for_s << "seconds.\n";
   // ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::duration<double>(time_to_search_for_s)};
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{5000};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{5500};
 
   if (tngame.canRevealTrump())
   {
