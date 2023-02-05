@@ -1,7 +1,7 @@
 #include "bot.hh"
 #include "card.h"
-#include "include/ismcts/sosolver.h"
 #include "include/ismcts/mosolver.h"
+#include "include/ismcts/sosolver.h"
 #include "ismcts_tn.hh"
 #include <algorithm>
 #include <boost/asio/detail/handler_type_requirements.hpp>
@@ -107,6 +107,7 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
   int max_bid_target = 16;
 
   std::map<CSuit, int> occurances;
+  std::map<CSuit, int> bid_contribs;
 
   occurances[SPADES] = 0;
   occurances[HEARTS] = 0;
@@ -115,8 +116,10 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
 
   for (const auto &c : mycards) {
     occurances[c.suit] += 1;
-    if (c.rank == JACK)
+    if (c.rank == JACK) {
+      bid_contribs[c.suit] += 1;
       max_bid_target += 1;
+    }
   }
 
   int max_occ = 0;
@@ -137,13 +140,14 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
 
   int max_bid = 0;
   std::map<PlayerID, int> bid_map;
-  for (auto const &bid_entry : bid_history)
-  {
+  for (auto const &bid_entry : bid_history) {
     bid_map[bid_entry.player_id] = bid_entry.bid_value;
     if (bid_entry.bid_value > max_bid) {
       max_bid = bid_entry.bid_value;
     }
   }
+
+  max_bid_target = max_bid_target > 17 ? 17 : max_bid_target;
 
   if (max_bid < max_bid_target)
     return max_bid_target;
@@ -157,7 +161,6 @@ inline int value(Card const &card) {
   return values.at(card.rank);
 }
 
-
 PlayAction GameState::Play(PlayPayload payload) {
 
   TwentyNine tngame;
@@ -168,30 +171,27 @@ PlayAction GameState::Play(PlayPayload payload) {
   std::cout << "GAME::::" << std::endl;
   std::cout << tngame << std::endl;
 
-  if (tngame.validMoves().size() == 1)
-  {
+  if (tngame.validMoves().size() == 1) {
     PlayAction p_action;
     p_action.played_card = Card_to_CCard(tngame.validMoves()[0]);
     return p_action;
   }
 
-  // double time_to_search_for_s = 0.001 * double(payload.remaining_time) * 0.2;
-  // std::cout << "Searching for " << time_to_search_for_s << "seconds.\n";
-  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::duration<double>(time_to_search_for_s)};
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{5500};
+  double offset_remaining_time = (double) payload.remaining_time - ((double)payload.cards.size() * 250.0 / 8.0);
+  double time_to_search_for_s = 0.001 * offset_remaining_time * 0.3;
+  if (time_to_search_for_s < 0.001)
+    time_to_search_for_s = 0.001;
+  std::cout << "Searching for " << time_to_search_for_s << "seconds.\n";
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::duration<double>(time_to_search_for_s)};
+  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{5500};
 
-  if (tngame.canRevealTrump())
-  {
+  if (tngame.canRevealTrump()) {
     PlayAction p_action;
     p_action.action = PlayAction::RevealTrump;
     return p_action;
   }
 
   Card best_move = solver(tngame);
-  // std::cout << *solver.currentTrees()[0] << std::endl;
-  // for (const auto tree: solver.currentTrees()) {
-  //   std::cout << *tree;
-  // }
 
   std::cout << "Move selected: " << best_move << std::endl;
 

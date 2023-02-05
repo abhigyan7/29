@@ -125,6 +125,9 @@ void TwentyNine::doMove(Card const move) {
 
 double TwentyNine::getResult(Player player) const {
 
+  if (!m_hasTrumpBeenRevealed)
+    return 0.5;
+
   if (m_bids[player] == 0) {
     if (m_bids[nextPlayer(player)] > m_pointsScored[nextPlayer(player)])
       return 1.0;
@@ -279,6 +282,9 @@ std::vector<Card> TwentyNine::validMoves() const {
   std::copy_if(hand.begin(), hand.end(), std::back_inserter(cardsInSuit),
                [&](auto const &c) { return c.suit == leadCard.suit; });
 
+  if (!m_hasTrumpBeenRevealed && !cardsInSuit.empty())
+    return cardsInSuit;
+
   winningCard = *std::max_element(
       currentTrickCards.begin(), currentTrickCards.end(),
       [&](auto const &c1, auto const &c2) { return VALUE(c1) < VALUE(c2); });
@@ -286,13 +292,6 @@ std::vector<Card> TwentyNine::validMoves() const {
   std::copy_if(cardsInSuit.begin(), cardsInSuit.end(),
                std::back_inserter(winningCardsInHand),
                [&](auto const &c) { return VALUE(c) > VALUE(winningCard); });
-
-  if (!m_hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
-    return winningCardsInHand;
-  }
-  if (!cardsInSuit.empty()) {
-    return cardsInSuit;
-  }
 
   std::vector<Card> trump_cards_in_hand;
   if (m_hasTrumpBeenRevealed) {
@@ -317,14 +316,17 @@ std::vector<Card> TwentyNine::validMoves() const {
                    });
     }
   }
-  if (!winningCardsInHand.empty())
-    return winningCardsInHand;
-  if (m_hasTrumpBeenRevealed && winningCardsInHand.empty() &&
-      m_player_who_revealed_trump == m_player &&
-      // i was here
-      m_which_hand_the_trump_was_revealed_in == (9 - m_tricksLeft))
-    if (!trump_cards_in_hand.empty())
+  if (m_hasTrumpBeenRevealed && m_player_who_revealed_trump == m_player &&
+      m_which_hand_the_trump_was_revealed_in == (9 - m_tricksLeft)) {
+    if (!winningCardsInHand.empty()) {
+      return winningCardsInHand;
+    } else if (!trump_cards_in_hand.empty()) {
       return trump_cards_in_hand;
+    }
+  }
+  if (!cardsInSuit.empty()) {
+    return cardsInSuit;
+  }
   return hand;
 }
 
@@ -366,6 +368,11 @@ void TwentyNine::finishTrick() {
   auto const winner = trickWinner();
   m_pointsScored[winner] += calcPointsInTrick();
   m_pointsScored[get_partner(winner)] += calcPointsInTrick();
+  if (m_tricksLeft == 1)
+  {
+    m_pointsScored[winner] += 1;
+    m_pointsScored[get_partner(winner)] += 1;
+  }
   m_currentTrick.clear();
   m_player = winner;
   m_tricksLeft--;
