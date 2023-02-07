@@ -14,7 +14,7 @@ OBJS=$(subst .cc,.o,$(SRCS))
 all: bot
 
 bot: $(OBJS)
-	$(CXX) -o bot $(OBJS) $(CXXFLAGS)
+	$(CXX) -o bbot $(OBJS) $(CXXFLAGS)
 
 optim:
 	$(CXX) -o bot $(SRCS) -std=c++20 -Ofast -static -flto

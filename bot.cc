@@ -168,8 +168,8 @@ PlayAction GameState::Play(PlayPayload payload) {
 
   tngame.parse_playpayload(payload);
 
-  std::cout << "GAME::::" << std::endl;
-  std::cout << tngame << std::endl;
+  // std::cout << "GAME::::" << std::endl;
+  // std::cout << tngame << std::endl;
 
   if (tngame.validMoves().size() == 1) {
     PlayAction p_action;
@@ -181,7 +181,8 @@ PlayAction GameState::Play(PlayPayload payload) {
   double time_to_search_for_s = 0.001 * offset_remaining_time * 0.3;
   if (time_to_search_for_s < 0.001)
     time_to_search_for_s = 0.001;
-  std::cout << "Searching for " << time_to_search_for_s << "seconds.\n";
+  if (payload.remaining_time == 0)
+    time_to_search_for_s = 0.500;
   ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::duration<double>(time_to_search_for_s)};
   // ISMCTS::SOSolver<TwentyNine::MoveType> solver{5500};
 
@@ -194,6 +195,8 @@ PlayAction GameState::Play(PlayPayload payload) {
   Card best_move = solver(tngame);
 
   std::cout << "Move selected: " << best_move << std::endl;
+
+  // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
 
   CCard selected_move = Card_to_CCard(best_move);
 

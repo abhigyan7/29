@@ -125,8 +125,8 @@ void TwentyNine::doMove(Card const move) {
 
 double TwentyNine::getResult(Player player) const {
 
-  if (!m_hasTrumpBeenRevealed)
-    return 0.5;
+  // if (!m_hasTrumpBeenRevealed)
+  //   return 0.5;
 
   if (m_bids[player] == 0) {
     if (m_bids[nextPlayer(player)] > m_pointsScored[nextPlayer(player)])

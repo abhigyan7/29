@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
 
   CROW_ROUTE(app, "/play").methods(crow::HTTPMethod::Post)([](const crow::request &req) {
         json data = json::parse(req.body);
-        std::cout << "JSON: " << req.body << std::endl;
+        // std::cout << "JSON: " << req.body << std::endl;
         PlayPayload payload;
         ParseCommon(data, payload.player_id, payload.player_ids,
                     payload.remaining_time, payload.cards, payload.bid_history);
