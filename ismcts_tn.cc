@@ -35,6 +35,39 @@ inline std::mt19937 &prng() {
   return prng;
 }
 
+const std::string suits_print_repr[] = {"C", "D", "H", "S"};
+
+std::ostream &operator<<(std::ostream &out, CompoundMove const &m) {
+  if (m.reveal_trump) {
+    out << "RT";
+  } else {
+    out << m.card_to_play;
+  }
+  return out;
+}
+
+bool CompoundMove::operator==(CompoundMove const &c) const {
+  if (c.reveal_trump == this->reveal_trump && c.reveal_trump == true)
+    return true;
+  return (c.card_to_play == this->card_to_play);
+}
+
+inline std::vector<TwentyNine::Move>
+cardvec_to_movevec(const std::vector<Card> &cardvec) {
+  std::vector<TwentyNine::Move> ret(cardvec.begin(), cardvec.end());
+  return ret;
+}
+
+inline std::vector<Card>
+movevec_to_cardvec(const std::vector<TwentyNine::Move> &movevec) {
+  std::vector<Card> ret;
+  for (const auto &move : movevec) {
+    if (!move.reveal_trump)
+      ret.push_back(move.card_to_play);
+  }
+  return ret;
+}
+
 TwentyNine::TwentyNine() : m_tricksLeft(8), m_dealer(3) {
   for (unsigned i{0}; i < s_deckSize; ++i) {
     m_deck[i] = {Card::Rank(i / 4), Card::Suit(i % 4)};
@@ -82,7 +115,7 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
     }
     is_sampled_correctly = true;
   }
-#ifdef DEBUG_
+#ifdef _DEBUG
   std::cout << "Sampled " << n_samples << " times" << std::endl;
   for (const auto &_player : m_players) {
     std::cout << "Player: " << _player << ": ";
@@ -105,8 +138,22 @@ std::vector<TwentyNine::Player> TwentyNine::players() const {
   return m_players;
 }
 
-void TwentyNine::doMove(Card const move) {
-  m_currentTrick.emplace_back(m_player, move);
+void TwentyNine::doMove(Move const move) {
+  if (move.reveal_trump) {
+    m_hasTrumpBeenRevealed = true;
+    m_player_who_revealed_trump = m_player;
+    m_which_hand_the_trump_was_revealed_in = 9 - m_tricksLeft;
+    std::vector<Card::Suit> suits = {Card::Suit::Clubs, Card::Suit::Spades,
+                                     Card::Suit::Hearts, Card::Suit::Diamonds};
+    std::vector<Card::Suit> trumpSuit{0};
+    if (!m_isTrumpSuitKnown) {
+      std::sample(suits.begin(), suits.end(), std::back_inserter(trumpSuit), 1,
+                  prng());
+      m_trumpSuit = trumpSuit[0];
+    }
+    return;
+  }
+  m_currentTrick.emplace_back(m_player, move.card_to_play);
   auto &hand = m_playerCards[m_player];
   auto const pos = std::find(hand.begin(), hand.end(), move);
 
@@ -125,8 +172,8 @@ void TwentyNine::doMove(Card const move) {
 
 double TwentyNine::getResult(Player player) const {
 
-  // if (!m_hasTrumpBeenRevealed)
-  //   return 0.5;
+  if (!m_hasTrumpBeenRevealed)
+    return 0.5;
 
   if (m_bids[player] == 0) {
     if (m_bids[nextPlayer(player)] > m_pointsScored[nextPlayer(player)])
@@ -177,14 +224,7 @@ bool TwentyNine::canRevealTrump() const {
   return false;
 }
 
-bool does_card_win_in_a_hand(const std::vector<Card> hand, const Card card,
-                             const Card::Suit lead_card_suit,
-                             const bool has_trump_been_revealed,
-                             const Card::Suit trump_suit) {
-  return true;
-}
-
-std::vector<Card>
+std::vector<CompoundMove>
 pureValidMoves(int tricksLeft, const std::vector<std::vector<Card>> playerCards,
                TwentyNine::Player player,
                std::vector<TwentyNine::Play> currentTrick,
@@ -194,11 +234,11 @@ pureValidMoves(int tricksLeft, const std::vector<std::vector<Card>> playerCards,
 
   using Hand = std::vector<Card>;
   if (tricksLeft == 0)
-    return std::vector<Card>();
+    return std::vector<CompoundMove>();
 
   const std::vector<Card> hand = playerCards[player];
   if (currentTrick.empty())
-    return hand;
+    return cardvec_to_movevec(hand);
 
   Card winningCard;
   Hand currentTrickCards;
@@ -221,10 +261,10 @@ pureValidMoves(int tricksLeft, const std::vector<std::vector<Card>> playerCards,
                [&](auto const &c) { return VALUE(c) > VALUE(winningCard); });
 
   if (!hasTrumpBeenRevealed && !winningCardsInHand.empty()) {
-    return winningCardsInHand;
+    return cardvec_to_movevec(winningCardsInHand);
   }
   if (!cardsInSuit.empty()) {
-    return cardsInSuit;
+    return cardvec_to_movevec(cardsInSuit);
   }
 
   std::vector<Card> trump_cards_in_hand;
@@ -251,24 +291,24 @@ pureValidMoves(int tricksLeft, const std::vector<std::vector<Card>> playerCards,
     }
   }
   if (!winningCardsInHand.empty())
-    return winningCardsInHand;
+    return cardvec_to_movevec(winningCardsInHand);
   if (hasTrumpBeenRevealed && winningCardsInHand.empty() &&
       player_who_revealed_trump == player &&
       // i was here
       which_trick_trump_was_revealed_in == (9 - tricksLeft))
     if (!trump_cards_in_hand.empty())
-      return trump_cards_in_hand;
-  return hand;
+      return cardvec_to_movevec(trump_cards_in_hand);
+  return cardvec_to_movevec(hand);
 }
 
-std::vector<Card> TwentyNine::validMoves() const {
+std::vector<TwentyNine::Move> TwentyNine::validMoves() const {
 
   if (m_tricksLeft == 0)
-    return std::vector<Card>();
+    return std::vector<TwentyNine::Move>();
 
   auto const &hand = m_playerCards[m_player];
   if (m_currentTrick.empty())
-    return hand;
+    return cardvec_to_movevec(hand);
 
   Card winningCard;
   Hand currentTrickCards;
@@ -283,7 +323,7 @@ std::vector<Card> TwentyNine::validMoves() const {
                [&](auto const &c) { return c.suit == leadCard.suit; });
 
   if (!m_hasTrumpBeenRevealed && !cardsInSuit.empty())
-    return cardsInSuit;
+    return cardvec_to_movevec(cardsInSuit);
 
   winningCard = *std::max_element(
       currentTrickCards.begin(), currentTrickCards.end(),
@@ -319,15 +359,18 @@ std::vector<Card> TwentyNine::validMoves() const {
   if (m_hasTrumpBeenRevealed && m_player_who_revealed_trump == m_player &&
       m_which_hand_the_trump_was_revealed_in == (9 - m_tricksLeft)) {
     if (!winningCardsInHand.empty()) {
-      return winningCardsInHand;
+      return cardvec_to_movevec(winningCardsInHand);
     } else if (!trump_cards_in_hand.empty()) {
-      return trump_cards_in_hand;
+      return cardvec_to_movevec(trump_cards_in_hand);
     }
   }
   if (!cardsInSuit.empty()) {
-    return cardsInSuit;
+    return cardvec_to_movevec(cardsInSuit);
   }
-  return hand;
+  std::vector<Move> ret = cardvec_to_movevec(hand);
+  if (!m_hasTrumpBeenRevealed)
+    ret.push_back(CompoundMove(true));
+  return ret;
 }
 
 void TwentyNine::clear() {
@@ -368,8 +411,7 @@ void TwentyNine::finishTrick() {
   auto const winner = trickWinner();
   m_pointsScored[winner] += calcPointsInTrick();
   m_pointsScored[get_partner(winner)] += calcPointsInTrick();
-  if (m_tricksLeft == 1)
-  {
+  if (m_tricksLeft == 1) {
     m_pointsScored[winner] += 1;
     m_pointsScored[get_partner(winner)] += 1;
   }
@@ -477,6 +519,10 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
       m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
       m_hasTrumpBeenRevealed = true;
     }
+  } else if (std::holds_alternative<CSuit>(payload.trumpCSuit)) {
+    m_trumpSuit = CSuit_to_Suit(std::get<CSuit>(payload.trumpCSuit));
+    m_hasTrumpBeenRevealed = false;
+    m_isTrumpSuitKnown = true;
   }
 
   m_players = {0, 1, 2, 3};
@@ -505,23 +551,50 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
 
   PlayPayload::HandHistoryEntry current_trick_shoehorned_handhistory;
   for (auto const &_c : currentTrick) {
-    std::cout << "current trick: " << _c.second << ", ";
     current_trick_shoehorned_handhistory.card.push_back(
         Card_to_CCard(_c.second));
   }
   std::cout << std::endl;
   hh.push_back(current_trick_shoehorned_handhistory);
 
+  bool processed_trump_reveal = false;
+  // TODO make sure the inference around trump reveal
+  // is working correctly
   for (const auto &history_entry : hh) {
     for (const auto &played_ccard : history_entry.card) {
-      std::vector<Card> legal_moves;
+      std::vector<Move> legal_moves;
       Card played_card = CCard_to_Card(played_ccard);
       while (m_player != me) {
         m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
+        if (m_player_who_revealed_trump == m_player &&
+            !processed_trump_reveal &&
+            m_which_hand_the_trump_was_revealed_in == (9 - m_tricksLeft)) {
+          m_hasTrumpBeenRevealed = false;
+          legal_moves = validMoves();
+          m_hasTrumpBeenRevealed = true;
+          processed_trump_reveal = true;
+          if (legal_moves.size() == 0)
+            break;
+          std::set<Card> legal_moves_set =
+              vec_to_set(movevec_to_cardvec(legal_moves));
+          played_card = CCard_to_Card(played_ccard);
+          if (legal_moves_set.count(played_card) != 0)
+            break;
+          for (const auto &legal_card_that_player_couldnt_play :
+               legal_moves_set) {
+            players_possible_cards[m_player].erase(
+                legal_card_that_player_couldnt_play);
+          }
+        }
         legal_moves = validMoves();
+        legal_moves = pureValidMoves(
+            m_tricksLeft, m_playerCards, m_player, m_currentTrick,
+            m_hasTrumpBeenRevealed, m_trumpSuit, m_player_who_revealed_trump,
+            m_which_hand_the_trump_was_revealed_in);
         if (legal_moves.size() == 0)
           break;
-        std::set<Card> legal_moves_set = vec_to_set(legal_moves);
+        std::set<Card> legal_moves_set =
+            vec_to_set(movevec_to_cardvec(legal_moves));
         played_card = CCard_to_Card(played_ccard);
         if (legal_moves_set.count(played_card) != 0)
           break;
@@ -531,7 +604,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
               legal_card_that_player_couldnt_play);
         }
       }
-      doMove(played_card);
+      doMove(CompoundMove(played_card));
       unknown_cards.erase(played_card);
       players_possible_cards[0].erase(played_card);
       players_possible_cards[1].erase(played_card);
@@ -595,10 +668,7 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   m_players_possible_cards = players_possible_cards;
 }
 
-const std::string suits_print_repr[] = {"C", "D", "H", "S"};
-
 std::ostream &operator<<(std::ostream &out, TwentyNine const &g) {
-  out << "Card size: " << g.m_playerCards[g.m_player].size() << ", ";
   auto const player = g.m_player;
   auto const &hand = g.m_playerCards[player];
   out << "Round " << 8 - g.m_tricksLeft << " | P" << player << ": ";
@@ -612,7 +682,13 @@ std::ostream &operator<<(std::ostream &out, TwentyNine const &g) {
         << ", In trick ";
     out << g.m_which_hand_the_trump_was_revealed_in;
   } else {
-    out << " | Trump unrevealed.";
+    out << " | Trump unrevealed";
+    if (g.m_isTrumpSuitKnown) {
+      out << ", is: " << suits_print_repr[g.m_trumpSuit];
+    }
   }
-  return out << "]";
+  out << " | Bids: ";
+  std::copy(g.m_bids.begin(), g.m_bids.end(),
+            std::ostream_iterator<int>(out, ","));
+  return out;
 }

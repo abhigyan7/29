@@ -168,59 +168,47 @@ PlayAction GameState::Play(PlayPayload payload) {
 
   tngame.parse_playpayload(payload);
 
-  // std::cout << "GAME::::" << std::endl;
-  // std::cout << tngame << std::endl;
+  auto valid_moves = tngame.validMoves();
+
+  for (const auto valid_move : valid_moves) {
+    std::cout << valid_move << ", ";
+  }
+  std::cout << std::endl;
+  std::cout << tngame << std::endl;
 
   if (tngame.validMoves().size() == 1) {
     PlayAction p_action;
-    p_action.played_card = Card_to_CCard(tngame.validMoves()[0]);
+    p_action.played_card = Card_to_CCard(tngame.validMoves()[0].card_to_play);
     return p_action;
   }
 
-  double offset_remaining_time = (double) payload.remaining_time - ((double)payload.cards.size() * 250.0 / 8.0);
+  double offset_remaining_time = (double)payload.remaining_time -
+                                 ((double)payload.cards.size() * 250.0 / 8.0);
   double time_to_search_for_s = 0.001 * offset_remaining_time * 0.3;
   if (time_to_search_for_s < 0.001)
     time_to_search_for_s = 0.001;
   if (payload.remaining_time == 0)
     time_to_search_for_s = 0.500;
-  ISMCTS::SOSolver<TwentyNine::MoveType> solver{std::chrono::duration<double>(time_to_search_for_s)};
-  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{5500};
+  ISMCTS::SOSolver<TwentyNine::MoveType> solver{
+      std::chrono::duration<double>(time_to_search_for_s)};
 
-  if (tngame.canRevealTrump()) {
-    PlayAction p_action;
+  // ISMCTS::SOSolver<TwentyNine::MoveType> solver{1000};
+
+  PlayAction p_action;
+  TwentyNine::Move best_move = solver(tngame);
+
+  if (best_move.reveal_trump) {
+    std::cout << "Revealing trump" << std::endl;
     p_action.action = PlayAction::RevealTrump;
     return p_action;
   }
 
-  Card best_move = solver(tngame);
-
-  std::cout << "Move selected: " << best_move << std::endl;
-
+  std::cout << "Move selected: " << best_move.card_to_play << std::endl;
   // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
 
-  CCard selected_move = Card_to_CCard(best_move);
+  CCard selected_move = Card_to_CCard(best_move.card_to_play);
 
-  PlayAction p_action;
   p_action.action = PlayAction::PlayCCard;
   p_action.played_card = selected_move;
-  return p_action;
-
-  if (payload.played.empty()) {
-    p_action.played_card = payload.cards[0];
-    return p_action;
-  }
-
-  CSuit lead_suit = payload.played[0].suit;
-
-  auto same_suit_filter = [=](CCard card) { return card.suit == lead_suit; };
-  std::vector<CCard> same_suit_cards;
-  std::copy_if(payload.cards.begin(), payload.cards.end(),
-               std::back_inserter(same_suit_cards), same_suit_filter);
-  if (same_suit_cards.empty()) {
-    p_action.played_card = payload.cards[0];
-    return p_action;
-  }
-
-  p_action.played_card = *same_suit_cards.begin();
   return p_action;
 }

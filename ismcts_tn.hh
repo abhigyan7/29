@@ -5,26 +5,43 @@
 #include "card.h"
 #include "include/ismcts/game.h"
 
+#include <map>
 #include <set>
 #include <vector>
-#include <map>
 
-enum MoveType {
-    MOVE_TYPE_FOLLOW_SUIT_WIN,
-    MOVE_TYPE_FOLLOW_SUIT_LOSE,
-    MOVE_TYPE_TRUMP_WIN,
-    MOVE_TYPE_NONE,
+class CompoundMove {
+public:
+  Card card_to_play;
+  bool reveal_trump;
+  CompoundMove() = default;
+  CompoundMove(const Card card) : card_to_play(card), reveal_trump(false) {}
+  CompoundMove(const bool revealTrump) : reveal_trump(revealTrump) {}
+  friend std::ostream &operator<<(std::ostream &out, CompoundMove const &m);
+  bool operator==(CompoundMove const &) const;
+  bool operator!=(CompoundMove const &other) const { return !(*this == other); }
+  explicit operator int() const {
+    if (this->reveal_trump)
+      return 55;
+    return int(card_to_play);
+  }
+  constexpr CompoundMove(Card::Rank rank, Card::Suit suit)
+      : card_to_play(rank, suit), reveal_trump(false) {}
 };
 
-class TwentyNine : public ISMCTS::POMGame<Card> {
+inline bool operator<(CompoundMove const &a, CompoundMove const &b) {
+  return int(a) < int(b);
+}
+
+class TwentyNine : public ISMCTS::POMGame<CompoundMove> {
 
 public:
+  using Move = CompoundMove;
   explicit TwentyNine();
   virtual Clone cloneAndRandomise(Player observer) const override;
   virtual Player currentPlayer() const override;
   virtual std::vector<Player> players() const override;
-  virtual std::vector<Card> validMoves() const override;
-  virtual void doMove(Card const move) override;
+  virtual std::vector<Move> validMoves() const override;
+  virtual void doMove(Move const move) override;
   virtual double getResult(Player player) const override;
   friend std::ostream &operator<<(std::ostream &out, TwentyNine const &g);
 
@@ -48,12 +65,12 @@ public:
   Player m_player{0};
   Player m_dealer;
   Card::Suit m_trumpSuit;
-  bool m_requestTrump = false;
+  bool m_isTrumpSuitKnown = false;
   bool m_hasTrumpBeenRevealed = false;
   Player m_player_who_revealed_trump;
   size_t m_which_hand_the_trump_was_revealed_in;
   std::map<std::string, size_t> m_map_player_string_to_int_id;
-    std::vector<std::set<Card>> m_players_possible_cards;
+  std::vector<std::set<Card>> m_players_possible_cards;
 
   Player nextPlayer(Player p) const;
   void deal();
@@ -66,8 +83,7 @@ public:
   Player trickWinner() const;
   bool canRevealTrump() const;
 
-  void parse_playpayload(const PlayPayload&);
-
+  void parse_playpayload(const PlayPayload &);
 };
 
 #endif // ISMCTS_TN_H_

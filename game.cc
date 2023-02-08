@@ -1,5 +1,5 @@
-#include "crow_all.h"
 #include "bot.hh"
+#include "crow_all.h"
 #include "json.hpp"
 
 #include <iostream>
@@ -39,56 +39,60 @@ int main(int argc, char **argv) {
 
   crow::App<crow::CORSHandler> app;
 
-  CROW_ROUTE(app, "/hi")([](){ return "{\"value\": \"hello\"}";});
+  CROW_ROUTE(app, "/hi")([]() { return "{\"value\": \"hello\"}"; });
 
-  CROW_ROUTE(app, "/bid").methods(crow::HTTPMethod::Post)([](const crow::request &req) {
-    json data = json::parse(req.body);
+  CROW_ROUTE(app, "/bid")
+      .methods(crow::HTTPMethod::Post)([](const crow::request &req) {
+        json data = json::parse(req.body);
 
-    int32_t remaining_time;
-    PlayerID myid;
-    std::vector<PlayerID> player_ids;
-    player_ids.reserve(4);
-    std::vector<CCard> my_cards;
-    std::vector<BidEntry> bid_history;
+        int32_t remaining_time;
+        PlayerID myid;
+        std::vector<PlayerID> player_ids;
+        player_ids.reserve(4);
+        std::vector<CCard> my_cards;
+        std::vector<BidEntry> bid_history;
 
-    ParseCommon(data, myid, player_ids, remaining_time, my_cards, bid_history);
+        ParseCommon(data, myid, player_ids, remaining_time, my_cards,
+                    bid_history);
 
-    // Parse challenger and defender
-    BidState bid_state;
-    auto const &state = data["bidState"];
-    bid_state.defender.player_id = state["defenderId"].get<PlayerID>();
-    bid_state.challenger.player_id = state["challengerId"].get<PlayerID>();
-    bid_state.defender.bid_value = state["defenderBid"].get<int32_t>();
-    bid_state.challenger.bid_value = state["challengerBid"].get<int32_t>();
+        // Parse challenger and defender
+        BidState bid_state;
+        auto const &state = data["bidState"];
+        bid_state.defender.player_id = state["defenderId"].get<PlayerID>();
+        bid_state.challenger.player_id = state["challengerId"].get<PlayerID>();
+        bid_state.defender.bid_value = state["defenderBid"].get<int32_t>();
+        bid_state.challenger.bid_value = state["challengerBid"].get<int32_t>();
 
-    json send;
-    send["bid"] =
-        GameState::Bid(myid, std::move(player_ids), std::move(my_cards),
-                       remaining_time, std::move(bid_history), bid_state);
-    return crow::response(send.dump());
-  });
+        json send;
+        send["bid"] =
+            GameState::Bid(myid, std::move(player_ids), std::move(my_cards),
+                           remaining_time, std::move(bid_history), bid_state);
+        return crow::response(send.dump());
+      });
 
-  CROW_ROUTE(app, "/chooseTrump").methods(crow::HTTPMethod::Post)([](const crow::request &req) {
+  CROW_ROUTE(app, "/chooseTrump")
+      .methods(crow::HTTPMethod::Post)([](const crow::request &req) {
+        json data = json::parse(req.body);
 
-    json data = json::parse(req.body);
+        int32_t remaining_time;
+        PlayerID myid;
+        std::vector<PlayerID> player_ids;
+        player_ids.reserve(4);
+        std::vector<CCard> my_cards;
+        std::vector<BidEntry> bid_history;
 
-    int32_t remaining_time;
-    PlayerID myid;
-    std::vector<PlayerID> player_ids;
-    player_ids.reserve(4);
-    std::vector<CCard> my_cards;
-    std::vector<BidEntry> bid_history;
+        ParseCommon(data, myid, player_ids, remaining_time, my_cards,
+                    bid_history);
 
-    ParseCommon(data, myid, player_ids, remaining_time, my_cards, bid_history);
+        json send;
+        send["suit"] = CSuitToStr(GameState::ChooseTrump(
+            myid, std::move(player_ids), std::move(my_cards), remaining_time,
+            std::move(bid_history)));
+        return crow::response(send.dump());
+      });
 
-    json send;
-    send["suit"] = CSuitToStr(
-        GameState::ChooseTrump(myid, std::move(player_ids), std::move(my_cards),
-                               remaining_time, std::move(bid_history)));
-    return crow::response(send.dump());
-  });
-
-  CROW_ROUTE(app, "/play").methods(crow::HTTPMethod::Post)([](const crow::request &req) {
+  CROW_ROUTE(app, "/play")
+      .methods(crow::HTTPMethod::Post)([](const crow::request &req) {
         json data = json::parse(req.body);
         // std::cout << "JSON: " << req.body << std::endl;
         PlayPayload payload;
@@ -101,7 +105,8 @@ int main(int argc, char **argv) {
         else
           payload.trumpCSuit = StrToCSuit(trump_suit.dump().c_str() + 1);
 
-        std::cout << "trump suit in payload: " << trump_suit.dump() << std::endl;
+        std::cout << "trump suit in payload: " << trump_suit.dump()
+                  << std::endl;
 
         auto &trump_reveal = data["trumpRevealed"];
 
