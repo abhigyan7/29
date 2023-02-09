@@ -147,10 +147,13 @@ int GameState::Bid(PlayerID myid, std::vector<PlayerID> player_ids,
     }
   }
 
-  max_bid_target = max_bid_target > 17 ? 17 : max_bid_target;
+  max_bid_target = max_bid_target > 18 ? 18 : max_bid_target;
 
-  if (max_bid < max_bid_target)
-    return max_bid_target;
+  if (max_bid < max_bid_target) {
+    if (max_bid == 0)
+      return 16;
+    return max_bid + 1;
+  }
   return 0;
 }
 
@@ -176,6 +179,8 @@ PlayAction GameState::Play(PlayPayload payload) {
   std::cout << std::endl;
   std::cout << tngame << std::endl;
 
+
+
   if (tngame.validMoves().size() == 1) {
     PlayAction p_action;
     p_action.played_card = Card_to_CCard(tngame.validMoves()[0].card_to_play);
@@ -197,14 +202,43 @@ PlayAction GameState::Play(PlayPayload payload) {
   PlayAction p_action;
   TwentyNine::Move best_move = solver(tngame);
 
+  std::cout << "Move selected: " << best_move << std::endl;
+  // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
+
+#ifdef DEBUG
+  std::cout << std::endl << std::endl;
+  std::cout << "---------------------------" << std::endl;
+
+  std::cout << "Player 0 has: ";
+  for (const auto &_c : tngame.m_players_possible_cards[0])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 1 has: ";
+  for (const auto &_c : tngame.m_players_possible_cards[1])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 2 has: ";
+  for (const auto &_c : tngame.m_players_possible_cards[2])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Player 3 has: ";
+  for (const auto &_c : tngame.m_players_possible_cards[3])
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+
+  std::cout << "Unknown cards: ";
+  for (const auto &_c : tngame.m_unknownCards)
+    std::cout << _c << ", ";
+  std::cout << std::endl;
+#endif
   if (best_move.reveal_trump) {
     std::cout << "Revealing trump" << std::endl;
     p_action.action = PlayAction::RevealTrump;
     return p_action;
   }
-
-  std::cout << "Move selected: " << best_move.card_to_play << std::endl;
-  // std::cout << solver.currentTrees()[0]->treeToString() << std::endl;
 
   CCard selected_move = Card_to_CCard(best_move.card_to_play);
 

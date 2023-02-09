@@ -115,7 +115,7 @@ TwentyNine::Clone TwentyNine::cloneAndRandomise(Player observer) const {
     }
     is_sampled_correctly = true;
   }
-#ifdef _DEBUG
+#ifdef DEBUG
   std::cout << "Sampled " << n_samples << " times" << std::endl;
   for (const auto &_player : m_players) {
     std::cout << "Player: " << _player << ": ";
@@ -411,10 +411,6 @@ void TwentyNine::finishTrick() {
   auto const winner = trickWinner();
   m_pointsScored[winner] += calcPointsInTrick();
   m_pointsScored[get_partner(winner)] += calcPointsInTrick();
-  if (m_tricksLeft == 1) {
-    m_pointsScored[winner] += 1;
-    m_pointsScored[get_partner(winner)] += 1;
-  }
   m_currentTrick.clear();
   m_player = winner;
   m_tricksLeft--;
@@ -558,50 +554,43 @@ void TwentyNine::parse_playpayload(const PlayPayload &payload) {
   hh.push_back(current_trick_shoehorned_handhistory);
 
   bool processed_trump_reveal = false;
-  // TODO make sure the inference around trump reveal
-  // is working correctly
   for (const auto &history_entry : hh) {
     for (const auto &played_ccard : history_entry.card) {
       std::vector<Move> legal_moves;
       Card played_card = CCard_to_Card(played_ccard);
       while (m_player != me) {
-        m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
-        if (m_player_who_revealed_trump == m_player &&
-            !processed_trump_reveal &&
+        if (m_player == m_player_who_revealed_trump &&
             m_which_hand_the_trump_was_revealed_in == (9 - m_tricksLeft)) {
-          m_hasTrumpBeenRevealed = false;
-          legal_moves = validMoves();
-          m_hasTrumpBeenRevealed = true;
-          processed_trump_reveal = true;
-          if (legal_moves.size() == 0)
-            break;
-          std::set<Card> legal_moves_set =
-              vec_to_set(movevec_to_cardvec(legal_moves));
-          played_card = CCard_to_Card(played_ccard);
-          if (legal_moves_set.count(played_card) != 0)
-            break;
-          for (const auto &legal_card_that_player_couldnt_play :
-               legal_moves_set) {
-            players_possible_cards[m_player].erase(
-                legal_card_that_player_couldnt_play);
+
+          auto lead_card_suit = m_currentTrick[0].second.suit;
+          std::vector<Card> cards_of_lead_card_suit;
+          std::copy_if(m_deck.begin(), m_deck.end(),
+                       std::back_inserter(cards_of_lead_card_suit),
+                       [&](auto const &c) { return c.suit == lead_card_suit; });
+          for (const auto &c: cards_of_lead_card_suit) {
+            players_possible_cards[m_player].erase(c);
+          }
+
+          if (m_trumpSuit != played_card.suit) {
+            std::vector<Card> cards_of_trump_suit;
+            std::copy_if(m_deck.begin(), m_deck.end(),
+                         std::back_inserter(cards_of_trump_suit),
+                         [&](auto const &c) { return c.suit == m_trumpSuit; });
+            for (const auto &c: cards_of_lead_card_suit) {
+              players_possible_cards[m_player].erase(c);
+            }
           }
         }
+        m_playerCards[m_player] = set_to_vec(players_possible_cards[m_player]);
         legal_moves = validMoves();
-        legal_moves = pureValidMoves(
-            m_tricksLeft, m_playerCards, m_player, m_currentTrick,
-            m_hasTrumpBeenRevealed, m_trumpSuit, m_player_who_revealed_trump,
-            m_which_hand_the_trump_was_revealed_in);
         if (legal_moves.size() == 0)
           break;
         std::set<Card> legal_moves_set =
             vec_to_set(movevec_to_cardvec(legal_moves));
-        played_card = CCard_to_Card(played_ccard);
         if (legal_moves_set.count(played_card) != 0)
           break;
-        for (const auto &legal_card_that_player_couldnt_play :
-             legal_moves_set) {
-          players_possible_cards[m_player].erase(
-              legal_card_that_player_couldnt_play);
+        for (const auto &legal_card_voided : legal_moves_set) {
+          players_possible_cards[m_player].erase(legal_card_voided);
         }
       }
       doMove(CompoundMove(played_card));

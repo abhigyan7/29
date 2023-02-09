@@ -49,8 +49,6 @@ public:
   using Hand = std::vector<Card>;
   using Play = std::pair<Player, Card>;
 
-  bool m_card_distribution[4][8];
-
   unsigned int static constexpr s_deckSize{32};
   std::vector<Card> m_deck{s_deckSize};
   std::vector<Card> m_unknownCards;
@@ -71,6 +69,7 @@ public:
   size_t m_which_hand_the_trump_was_revealed_in;
   std::map<std::string, size_t> m_map_player_string_to_int_id;
   std::vector<std::set<Card>> m_players_possible_cards;
+  float m_players_cards_probabilities[4][32];
 
   Player nextPlayer(Player p) const;
   void deal();
